@@ -10,7 +10,7 @@ PlayMCP `동네SOS` candidate.
 - Public source repo:
   `https://github.com/kjessie00/dongnesos-mcp`
 - Current PlayMCP in KC endpoint:
-  `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
+  `https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp`
 - MCP endpoint path after deploy: `/mcp`
 - Health endpoint path after deploy: `/healthz`
 - Runtime: Node.js >= 20, Docker-ready

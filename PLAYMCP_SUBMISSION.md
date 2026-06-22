@@ -4,15 +4,15 @@
 
 - Product: `동네SOS / 이거 어디에 말해?`
 - Server: `dongnesos-neighborhood-sos`
-- MCP endpoint: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
-- Health endpoint: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/healthz`
+- MCP endpoint: `https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp`
+- Health endpoint: `https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/healthz`
 - Runtime: Node.js >= 20
 - SDK: `@modelcontextprotocol/sdk@1.29.0`
 - Contest deploy surface: PlayMCP in KC
 - Required image architecture for container-image deploy: `linux/amd64`
 - Public source repo: `https://github.com/kjessie00/dongnesos-mcp`
-- Current PlayMCP in KC id: `363`
-- Current review state: temporary registration Online, Tools 2, review not requested
+- Current PlayMCP in KC id: `375`
+- Current review state: temporary registration Online, Tools 2, endpoint updated to v2, review not requested
 
 ## Required Local Evidence
 
@@ -28,13 +28,13 @@ npm run preflight:release
 npm run package:deploy
 npm run verify:bundle
 npm run evidence:submission
-MCP_URL=https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp \
+MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
 EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json \
 npm run smoke:endpoint
-DEPLOYED_ENDPOINT_URL=https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp \
-DEPLOYMENT_ID=playmcp-in-kc-363 \
-PLAYMCP_TEMP_REGISTRATION_STATUS='PASS: temporary registration Online, Tools 2, review not requested' \
-PLAYMCP_SCREENSHOT_PATH='deploy/playmcp/evidence/playmcp-temp-registration.png' \
+DEPLOYED_ENDPOINT_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
+DEPLOYMENT_ID=playmcp-in-kc-375 \
+PLAYMCP_TEMP_REGISTRATION_STATUS='PASS: temporary registration Online, Tools 2, endpoint updated to v2, review not requested' \
+PLAYMCP_SCREENSHOT_PATH='deploy/playmcp/evidence/playmcp-temp-registration-v2.png' \
 PLAYMCP_REVIEW_REQUEST_STATUS='NOT_REQUESTED' \
 JESSIE_REVIEWED='PENDING' \
 JESSIE_FINAL_SUBMIT_APPROVED='false' \
@@ -83,8 +83,8 @@ Expected local proof:
 
 After Kakao Cloud deployment, capture:
 
-- Deployed endpoint URL: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
-- Deployment id / revision: `playmcp-in-kc-363`
+- Deployed endpoint URL: `https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp`
+- Deployment id / revision: `playmcp-in-kc-375`
 - `GET /healthz` response: PASS
 - Production start smoke: PASS
 - MCP `tools/list` response showing exactly:
@@ -94,9 +94,9 @@ After Kakao Cloud deployment, capture:
 - MCP `classify_civic_issue` sample call response: PASS
 - MCP `draft_civic_report` sample call response: PASS
 - Emergency sample showing draft blocked: PASS
-- Emergency sample showing PII masked before redirect: PENDING until PlayMCP in KC is rebuilt from the latest source
+- Emergency sample showing PII masked before redirect: PASS
 - `deploy/playmcp/evidence/remote-smoke.json` path: recorded
-- PlayMCP temporary registration status/screenshot: Online / `deploy/playmcp/evidence/playmcp-temp-registration.png`
+- PlayMCP temporary registration status/screenshot: Online / `deploy/playmcp/evidence/playmcp-temp-registration-v2.png`
 - Jessie review result: PENDING
 - One-time preliminary submission timestamp: PENDING
 
