@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.agent/
 deploy/playmcp/evidence/
 deploy/playmcp/package/
 .env
