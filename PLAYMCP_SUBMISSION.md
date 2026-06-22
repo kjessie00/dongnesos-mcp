@@ -4,30 +4,40 @@
 
 - Product: `동네SOS / 이거 어디에 말해?`
 - Server: `dongnesos-neighborhood-sos`
-- MCP endpoint: `https://<kakao-cloud-endpoint>/mcp`
-- Health endpoint: `https://<kakao-cloud-endpoint>/healthz`
+- MCP endpoint: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
+- Health endpoint: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/healthz`
 - Runtime: Node.js >= 20
 - SDK: `@modelcontextprotocol/sdk@1.29.0`
 - Contest deploy surface: PlayMCP in KC
 - Required image architecture for container-image deploy: `linux/amd64`
+- Public source repo: `https://github.com/kjessie00/dongnesos-mcp`
+- Current PlayMCP in KC id: `363`
+- Current review state: temporary registration Online, Tools 2, review not requested
 
 ## Required Local Evidence
 
 Record the fresh command output before deployment:
 
 ```bash
-cd neighborhood-sos-mcp
+cd /Users/jessiek/StudioProjects/dongnesos-mcp
 npm run check
 npm run smoke:http
 npm run smoke:dist
 npm run smoke:docker
-npm run image:build:amd64
-npm run image:push:playmcp
 npm run preflight:release
 npm run package:deploy
 npm run verify:bundle
 npm run evidence:submission
-MCP_URL=https://<kakao-cloud-endpoint>/mcp EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json npm run smoke:endpoint
+MCP_URL=https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp \
+EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json \
+npm run smoke:endpoint
+DEPLOYED_ENDPOINT_URL=https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp \
+DEPLOYMENT_ID=playmcp-in-kc-363 \
+PLAYMCP_TEMP_REGISTRATION_STATUS='PASS: temporary registration Online, Tools 2, review not requested' \
+PLAYMCP_SCREENSHOT_PATH='deploy/playmcp/evidence/playmcp-temp-registration.png' \
+PLAYMCP_REVIEW_REQUEST_STATUS='NOT_REQUESTED' \
+JESSIE_REVIEWED='PENDING' \
+JESSIE_FINAL_SUBMIT_APPROVED='false' \
 npm run evidence:submission
 ```
 
@@ -47,7 +57,7 @@ Expected local proof:
 - 28 taxonomy items validated.
 - Policy scan passes with no external API, submit, location, photo/EXIF, or
   KakaoTalk read surface in core/tool code.
-- 48+ node tests pass.
+- 61+ node tests pass.
 - TypeScript build passes.
 - HTTP MCP smoke confirms exactly two tools and successful `classify` + `draft`
   calls.
@@ -73,21 +83,22 @@ Expected local proof:
 
 After Kakao Cloud deployment, capture:
 
-- Deployed endpoint URL:
-- Deployment id / revision:
-- `GET /healthz` response:
-- Production start smoke:
+- Deployed endpoint URL: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
+- Deployment id / revision: `playmcp-in-kc-363`
+- `GET /healthz` response: PASS
+- Production start smoke: PASS
 - MCP `tools/list` response showing exactly:
   - `classify_civic_issue`
   - `draft_civic_report`
-- MCP `tools/list` schema check:
-- MCP `classify_civic_issue` sample call response:
-- MCP `draft_civic_report` sample call response:
-- Emergency sample showing draft blocked:
-- `deploy/playmcp/evidence/remote-smoke.json` path:
-- PlayMCP temporary registration status/screenshot:
-- Jessie review result:
-- One-time preliminary submission timestamp:
+- MCP `tools/list` schema check: PASS
+- MCP `classify_civic_issue` sample call response: PASS
+- MCP `draft_civic_report` sample call response: PASS
+- Emergency sample showing draft blocked: PASS
+- Emergency sample showing PII masked before redirect: PENDING until PlayMCP in KC is rebuilt from the latest source
+- `deploy/playmcp/evidence/remote-smoke.json` path: recorded
+- PlayMCP temporary registration status/screenshot: Online / `deploy/playmcp/evidence/playmcp-temp-registration.png`
+- Jessie review result: PENDING
+- One-time preliminary submission timestamp: PENDING
 
 Owner approval and stop rules are recorded in
 `deploy/playmcp/owner-approval-packet.md`.

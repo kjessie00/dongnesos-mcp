@@ -20,7 +20,7 @@ export function neutralizeForbiddenClaims(input: string): NeutralizeResult {
   const removed: string[] = [];
   for (const phrase of safetyRules.forbidden_phrases) {
     if (text.includes(phrase)) {
-      removed.push(phrase);
+      removed.push("forbidden_phrase");
       text = text.split(phrase).join("확인 필요");
     }
   }
@@ -28,7 +28,7 @@ export function neutralizeForbiddenClaims(input: string): NeutralizeResult {
     const before = text;
     text = text.replace(regex, replacement);
     if (before !== text) {
-      removed.push(regex.source);
+      removed.push("forbidden_pattern");
     }
   }
   return { text, removed: Array.from(new Set(removed)) };

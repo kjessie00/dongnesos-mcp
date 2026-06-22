@@ -22,4 +22,13 @@ describe("classifyCivicIssue", () => {
     assert.equal(output.routing.verify_needed, true);
     assert.match(output.routing.region_note, /확인 필요/);
   });
+
+  it("masks PII before returning an emergency redirect", () => {
+    const output = classifyCivicIssue({ description: "010-1234-5678 복도에서 가스 냄새가 심해요." });
+    assert.equal(output.result_type, "emergency_redirect");
+    assert.equal(output.safety.pii_detected, true);
+    assert.ok(!output.safety.masked_description.includes("010-1234-5678"));
+    assert.ok(output.safety.masked_description.includes("[전화번호 비공개]"));
+    assert.ok(output.errors.some((error) => error.code === "E_PII_MASKED"));
+  });
 });

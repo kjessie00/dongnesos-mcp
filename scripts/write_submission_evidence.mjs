@@ -41,6 +41,21 @@ function schemasStatus(smoke) {
   return smoke.tools.every((tool) => tool.has_input_schema && tool.has_output_schema) ? "PASS" : "FAIL";
 }
 
+function remoteEndpointStatus(smoke) {
+  if (!smoke) return "PENDING";
+  const corePass =
+    smoke.health?.status === 200 &&
+    smoke.health?.body?.ok === true &&
+    schemasStatus(smoke) === "PASS" &&
+    smoke.classify?.result_type === "classification" &&
+    smoke.draft?.result_type === "draft" &&
+    smoke.emergency_classify?.result_type === "emergency_redirect" &&
+    smoke.emergency_draft?.result_type === "blocked_emergency" &&
+    smoke.emergency_draft?.has_draft === false;
+  if (!corePass) return "FAIL";
+  return smoke.emergency_classify?.pii_masked === true ? "PASS" : "PENDING";
+}
+
 function packageEvidence() {
   const latest = latestBundle();
   return {
@@ -122,6 +137,7 @@ const lines = [
   `- MCP normal classify call: ${remoteSmoke?.classify?.result_type ?? "PENDING"} / ${remoteSmoke?.classify?.issue_code ?? "PENDING"}`,
   `- MCP normal draft call: ${remoteSmoke?.draft?.result_type ?? "PENDING"} / copy=${remoteSmoke?.draft?.has_copy_block ?? "PENDING"}`,
   `- MCP emergency classify call: ${remoteSmoke?.emergency_classify?.result_type ?? "PENDING"} / ${remoteSmoke?.emergency_classify?.issue_code ?? "PENDING"}`,
+  `- MCP emergency PII masking: ${remoteSmoke?.emergency_classify?.pii_masked === true ? "PASS" : "PENDING"}`,
   `- MCP emergency draft block: ${remoteSmoke?.emergency_draft?.result_type ?? "PENDING"} / has_draft=${remoteSmoke?.emergency_draft?.has_draft ?? "PENDING"}`,
   `- Remote smoke evidence JSON: ${existsSync(remoteSmokePath) ? remoteSmokePath : "PENDING"}`,
   "",
@@ -141,7 +157,7 @@ const lines = [
   "## Stop Rule State",
   "",
   `- Local ready for external deployment: ${boolLabel(localSummary?.local_ready_for_external_deploy)}`,
-  `- Remote endpoint verified: ${remoteSmoke ? "PASS" : "PENDING"}`,
+  `- Remote endpoint verified: ${remoteEndpointStatus(remoteSmoke)}`,
   `- PlayMCP registration verified: ${process.env.PLAYMCP_TEMP_REGISTRATION_STATUS ? "RECORDED" : "PENDING"}`,
   `- Final submission approved: ${process.env.JESSIE_FINAL_SUBMIT_APPROVED === "true" ? "PASS" : "PENDING"}`
 ];

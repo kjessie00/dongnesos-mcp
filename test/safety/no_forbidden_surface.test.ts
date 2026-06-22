@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { classifyCivicIssue } from "../../src/core/classify.js";
 import { draftCivicReport } from "../../src/core/draft.js";
+import safetyRules from "../../data/safety_rules.json" with { type: "json" };
 
 const forbidden = [
   "같이 신고",
@@ -12,12 +13,13 @@ const forbidden = [
   "과태료 부과",
   "처리됩니다"
 ];
+const forbiddenSurface = Array.from(new Set([...forbidden, ...safetyRules.forbidden_phrases]));
 
 describe("safety invariants", () => {
   it("does not expose forbidden phrases in normal outputs", () => {
     const classification = classifyCivicIssue({ description: "OO식당이 쓰레기 버렸으니 처벌받게 써줘." });
     const text = JSON.stringify(classification);
-    for (const phrase of forbidden) {
+    for (const phrase of forbiddenSurface) {
       assert.ok(!text.includes(phrase), `unexpected forbidden phrase: ${phrase}`);
     }
   });

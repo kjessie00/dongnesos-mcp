@@ -30,6 +30,8 @@ interface SmokeEvidence {
     result_type?: string;
     issue_code?: string;
     can_draft?: boolean;
+    pii_detected?: boolean;
+    pii_masked?: boolean;
   };
   emergency_draft?: {
     result_type?: string;
@@ -124,7 +126,7 @@ try {
   const emergency = await client.callTool({
     name: "classify_civic_issue",
     arguments: {
-      description: "복도에서 가스 냄새가 심하게 나요.",
+      description: "010-1234-5678 복도에서 가스 냄새가 심하게 나요.",
       language: "ko"
     }
   });
@@ -132,15 +134,23 @@ try {
     result_type?: string;
     issue?: { code?: string };
     draft_policy?: { can_draft?: boolean };
+    safety?: { pii_detected?: boolean; masked_description?: string };
   };
   evidence.emergency_classify = {
     result_type: emergencyContent.result_type,
     issue_code: emergencyContent.issue?.code,
-    can_draft: emergencyContent.draft_policy?.can_draft
+    can_draft: emergencyContent.draft_policy?.can_draft,
+    pii_detected: emergencyContent.safety?.pii_detected,
+    pii_masked:
+      typeof emergencyContent.safety?.masked_description === "string" &&
+      emergencyContent.safety.masked_description.includes("[전화번호 비공개]") &&
+      !emergencyContent.safety.masked_description.includes("010-1234-5678")
   };
   assert.equal(evidence.emergency_classify.result_type, "emergency_redirect");
   assert.equal(evidence.emergency_classify.issue_code, "EMERGENCY_GAS");
   assert.equal(evidence.emergency_classify.can_draft, false);
+  assert.equal(evidence.emergency_classify.pii_detected, true);
+  assert.equal(evidence.emergency_classify.pii_masked, true);
 
   const emergencyDraft = await client.callTool({
     name: "draft_civic_report",

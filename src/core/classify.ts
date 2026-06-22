@@ -28,9 +28,17 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
     return baseFailure("E_UNSUPPORTED_LANGUAGE", "예선 MVP는 한국어 입력만 지원합니다.", "error", "UNCLEAR", "명확화 필요");
   }
 
+  const masked = maskPii(description);
   const emergency = detectEmergency(description);
   if (emergency) {
-    const output = makeEmergencyOutput(emergency, description);
+    const output = makeEmergencyOutput(emergency, masked.text, masked.detected);
+    if (masked.detected) {
+      output.errors.push({
+        code: "E_PII_MASKED",
+        severity: "warning",
+        message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다."
+      });
+    }
     output.errors.push({
       code: "E_EMERGENCY_REDIRECT",
       severity: "blocking",
@@ -39,7 +47,6 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
     return output;
   }
 
-  const masked = maskPii(description);
   if (safetyRules.out_of_scope_keywords.some((term) => masked.text.includes(term))) {
     return makeOutOfScopeOutput(masked.text, masked.detected, [], [
       ...(masked.detected ? [{ code: "E_PII_MASKED", severity: "warning" as const, message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." }] : [])
@@ -188,7 +195,7 @@ function routingFor(channelFamily: ChannelFamily): ClassificationOutput["routing
   };
 }
 
-function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmergency>>, original: string): ClassificationOutput {
+function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmergency>>, maskedDescription: string, piiDetected: boolean): ClassificationOutput {
   const routing = routingFor("EMERGENCY_DIRECT");
   const output: ClassificationOutput = {
     ok: true,
@@ -208,8 +215,8 @@ function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmer
       avoid: ["현장 접근", "사진 촬영을 위해 위험 지역에 머무르기", "민원 초안 작성으로 대응 지연"]
     },
     safety: {
-      pii_detected: false,
-      masked_description: original,
+      pii_detected: piiDetected,
+      masked_description: maskedDescription,
       forbidden_claims_removed: [],
       emergency_redirect: {
         label: "공식 긴급 채널 직접 연락",

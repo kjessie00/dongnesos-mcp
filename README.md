@@ -104,7 +104,7 @@ EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json \
 npm run smoke:endpoint
 ```
 
-The current acceptance target is at least 48 passing tests plus the HTTP MCP
+The current acceptance target is at least 61 passing tests plus the HTTP MCP
 smoke covering `tools/list` schemas, `classify_civic_issue`, and
 `draft_civic_report`.
 

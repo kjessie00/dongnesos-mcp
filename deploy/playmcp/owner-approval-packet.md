@@ -6,7 +6,11 @@ PlayMCP `동네SOS` candidate.
 ## Current Local State
 
 - Local implementation path:
-  `/Users/jessiek/Documents/Codex/2026-06-18/files-mentioned-by-the-user-2026/neighborhood-sos-mcp`
+  `/Users/jessiek/StudioProjects/dongnesos-mcp`
+- Public source repo:
+  `https://github.com/kjessie00/dongnesos-mcp`
+- Current PlayMCP in KC endpoint:
+  `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
 - MCP endpoint path after deploy: `/mcp`
 - Health endpoint path after deploy: `/healthz`
 - Runtime: Node.js >= 20, Docker-ready
@@ -36,10 +40,8 @@ PlayMCP `동네SOS` candidate.
 Run:
 
 ```bash
-cd /Users/jessiek/Documents/Codex/2026-06-18/files-mentioned-by-the-user-2026/neighborhood-sos-mcp
+cd /Users/jessiek/StudioProjects/dongnesos-mcp
 npm run preflight:release
-npm run image:build:amd64
-npm run image:push:playmcp
 npm run package:deploy
 npm run verify:bundle
 npm run evidence:submission
@@ -74,11 +76,10 @@ Kakao Cloud 배포, PlayMCP 임시등록, 리뷰 요청, 예선 제출까지 진
 
 ## External Steps After Approval
 
-1. Deploy this directory through PlayMCP in KC using Git source build or
-   container image registration. If using image registration, build a
-   `linux/amd64` image. Public Docker Hub push or new GitHub repository
-   creation requires separate confirmation unless Jessie has explicitly
-   approved that artifact publication.
+1. Deploy or rebuild this directory through PlayMCP in KC using the public Git
+   source build path. If image registration is used instead, build a
+   `linux/amd64` image. Public Docker Hub push requires separate confirmation
+   unless Jessie has explicitly approved that artifact publication.
 2. Record deployment id/revision and endpoint URL.
 3. Run:
 

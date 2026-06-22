@@ -60,13 +60,16 @@ The middle command is a dry-run and writes
 
 ## Git Source Build Fields
 
-Use this path only if a reachable Git URL exists.
+Current path used for the deployed candidate.
 
 - MCP server name: `dongnesos-mcp`
 - Description: `동네 생활 불편을 분류하고 안전한 민원 신고 준비문을 만드는 PlayMCP 서버`
-- Git URL: a reachable repository URL containing this project and `Dockerfile`
-- Branch/ref: `main` or the selected release ref
+- Git URL: `https://github.com/kjessie00/dongnesos-mcp`
+- Branch/ref: `main` or the selected release tag
 - Dockerfile path: `Dockerfile`
-- PAT: only if the repository is private
+- PAT: not required for the public repo
 
-No GitHub repo or Docker registry mutation has been performed yet.
+Update/rollback rule: merge review-ready fixes to `main`, push, then rebuild the
+PlayMCP in KC server before requesting review. If a pushed fix is bad, revert on
+`main`, push, rebuild, and rerun `npm run smoke:endpoint` against the public
+endpoint before changing PlayMCP visibility or requesting review.

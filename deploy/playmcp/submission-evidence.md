@@ -1,50 +1,49 @@
 # Submission Evidence Log
 
-Fill this with final evidence after deployment and before preliminary
-submission.
+Canonical generated evidence is written to
+`deploy/playmcp/evidence/submission-evidence.generated.md`.
+
+Last reviewed state: PlayMCP temporary registration Online, Tools 2, review not
+requested. Final review request and one-time preliminary submission remain
+blocked until Jessie explicitly approves them.
 
 ## Local Verification
 
-- Date/time KST:
-- Node version:
-- npm version:
-- `npm run check` result:
-- `npm run smoke:http` result:
-- `npm run smoke:dist` result:
-- Docker build result:
-- Docker run `/healthz` result:
-- `npm run smoke:docker` result:
-- Docker runtime smoke evidence JSON:
-- `npm run preflight:release` result:
-- Local release summary JSON:
-- `npm run package:deploy` result:
-- Deploy bundle tarball:
-- Deploy bundle manifest:
-- Deploy bundle sha256:
-- `npm run verify:bundle` result:
-- Bundle verification JSON:
+- `npm run check` result: PASS
+- `npm run smoke:http` result: PASS
+- `npm run smoke:dist` result: PASS
+- `npm run smoke:docker` result: PASS
+- `npm run preflight:release` result: PASS
+- Local release summary JSON: `deploy/playmcp/evidence/local-release-summary.json`
+- Docker runtime smoke evidence JSON: `deploy/playmcp/evidence/docker-runtime-smoke.json`
+- `npm run package:deploy` result: PASS
+- Deploy bundle: see generated evidence
+- `npm run verify:bundle` result: PASS
+- Bundle verification JSON: `deploy/playmcp/evidence/bundle-verify.json`
 
 ## Remote Verification
 
-- Endpoint:
-- Deployment id / revision:
-- `GET /healthz`:
-- MCP `tools/list`:
-- MCP normal classify call:
-- MCP normal draft call:
-- MCP emergency classify call:
-- MCP emergency draft block:
-- Remote smoke evidence JSON:
+- Endpoint: `https://dongnesos-mcp.playmcp-endpoint.kakaocloud.io/mcp`
+- Deployment id / revision: `playmcp-in-kc-363`
+- `GET /healthz`: PASS
+- MCP `tools/list`: `classify_civic_issue`, `draft_civic_report`
+- MCP schema check: PASS
+- MCP normal classify call: PASS
+- MCP normal draft call: PASS
+- MCP emergency classify call: PASS
+- MCP emergency PII masking: requires fresh remote smoke after rebuild
+- MCP emergency draft block: PASS
+- Remote smoke evidence JSON: `deploy/playmcp/evidence/remote-smoke.json`
 
 ## PlayMCP UI
 
-- Temporary registration status:
-- Screenshot path:
-- Review request status:
-- Preliminary submission timestamp:
+- Temporary registration status: PASS, Online, Tools 2
+- Screenshot path: `deploy/playmcp/evidence/playmcp-temp-registration.png`
+- Review request status: NOT_REQUESTED
+- Preliminary submission timestamp: PENDING
 
 ## Owner Review
 
-- Jessie reviewed:
-- Required changes:
-- Final submit approved:
+- Jessie reviewed: PENDING
+- Required changes: PENDING
+- Final submit approved: false
