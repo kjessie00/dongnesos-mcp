@@ -1,0 +1,323 @@
+import { channelsData, safetyRules, taxonomyData } from "../data/loadData.js";
+import type { ChannelFamily, ClassificationOutput, ClassifyInput, ResultType, SosError, TaxonomyItem } from "../types.js";
+import { detectEmergency } from "./emergency.js";
+import { maskPii } from "./pii.js";
+import { neutralizeForbiddenClaims } from "./neutralize.js";
+import { clamp, normalizeText } from "./normalize.js";
+import { classificationCard } from "./presentationMock.js";
+
+const confidenceThreshold = 0.45;
+
+interface Score {
+  item: TaxonomyItem;
+  score: number;
+  matches: number;
+}
+
+export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
+  const errors: SosError[] = [];
+  const description = normalizeText(input.description ?? "");
+
+  if (description.length < 2) {
+    return baseFailure("E_EMPTY_DESCRIPTION", "무엇이 불편한지 한 줄로 적어주세요.", "needs_clarification", "UNCLEAR", "명확화 필요");
+  }
+  if (description.length > 1500) {
+    return baseFailure("E_INPUT_TOO_LONG", "설명이 너무 깁니다. 핵심만 짧게 요약해 주세요.", "error", "UNCLEAR", "명확화 필요");
+  }
+  if (input.language && input.language !== "ko") {
+    return baseFailure("E_UNSUPPORTED_LANGUAGE", "예선 MVP는 한국어 입력만 지원합니다.", "error", "UNCLEAR", "명확화 필요");
+  }
+
+  const emergency = detectEmergency(description);
+  if (emergency) {
+    const output = makeEmergencyOutput(emergency, description);
+    output.errors.push({
+      code: "E_EMERGENCY_REDIRECT",
+      severity: "blocking",
+      message: "긴급 또는 즉시 위험 가능성이 있어 초안 생성을 차단했습니다."
+    });
+    return output;
+  }
+
+  const masked = maskPii(description);
+  if (safetyRules.out_of_scope_keywords.some((term) => masked.text.includes(term))) {
+    return makeOutOfScopeOutput(masked.text, masked.detected, [], [
+      ...(masked.detected ? [{ code: "E_PII_MASKED", severity: "warning" as const, message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." }] : [])
+    ]);
+  }
+  const neutralized = neutralizeForbiddenClaims(masked.text);
+
+  if (masked.detected) {
+    errors.push({ code: "E_PII_MASKED", severity: "warning", message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." });
+  }
+  if (neutralized.removed.length) {
+    errors.push({
+      code: "E_FORBIDDEN_ASSERTION_REMOVED",
+      severity: "warning",
+      message: "처벌·비방·책임 단정으로 보일 수 있는 표현을 중립화했습니다."
+    });
+  }
+
+  const scores = scoreTaxonomy(neutralized.text, input.category_hint);
+  const best = scores[0];
+  const second = scores[1];
+  if (!best || best.score <= 0) {
+    return makeUnclearOutput(neutralized.text, masked.detected, neutralized.removed, errors);
+  }
+
+  const confidence = clamp(best.score / (best.score + (second?.score ?? 1) + 1), 0, 0.99);
+  if (confidence < confidenceThreshold) {
+    return makeUnclearOutput(neutralized.text, masked.detected, neutralized.removed, [
+      ...errors,
+      { code: "E_LOW_CONFIDENCE_NEEDS_CLARIFICATION", severity: "info", message: "유형을 확정하기 어려워 추가 설명이 필요합니다." }
+    ]);
+  }
+
+  const routing = routingFor(best.item.channel_family);
+  const priorityExplanation =
+    best.item.priority === "quick"
+      ? "빠른 접수 준비를 권장하지만 긴급 출동을 대신 안내할 상황은 아닙니다."
+      : best.item.priority === "low"
+        ? "일반 생활불편으로 분류됩니다. 세부 접수처는 확인이 필요합니다."
+        : "비긴급 생활불편으로 분류됩니다. 공식 채널에서 세부 접수처를 확인해 주세요.";
+
+  const output: ClassificationOutput = {
+    ok: true,
+    result_type: "classification",
+    issue: {
+      code: best.item.code,
+      label_ko: best.item.label_ko,
+      group: best.item.group
+    },
+    confidence: Number(confidence.toFixed(2)),
+    alternatives: scores
+      .slice(1, 4)
+      .filter((score) => score.score > 0)
+      .map((score) => ({
+        code: score.item.code,
+        label_ko: score.item.label_ko,
+        confidence: Number(clamp(score.score / (best.score + score.score + 1), 0, 0.95).toFixed(2))
+      })),
+    priority: {
+      level: best.item.priority,
+      is_emergency: false,
+      explanation: priorityExplanation
+    },
+    routing,
+    evidence: {
+      required: best.item.evidence_required,
+      optional: best.item.evidence_optional,
+      avoid: best.item.evidence_avoid
+    },
+    safety: {
+      pii_detected: masked.detected,
+      masked_description: neutralized.text,
+      forbidden_claims_removed: neutralized.removed,
+      emergency_redirect: null,
+      notices: safetyRules.disclaimers
+    },
+    draft_policy: {
+      can_draft: true,
+      reason: "비긴급 생활불편으로 초안 생성 가능"
+    },
+    user_messages: {
+      summary: `${best.item.label_ko}으로 보입니다. ${best.item.evidence_required.join(", ")}을 준비하면 좋습니다.`,
+      next_action: "draft_civic_report를 호출해 복붙용 초안을 만들 수 있습니다.",
+      clarifying_question: null
+    },
+    presentation_mock: {
+      version: "0.1",
+      card_type: "classification_card",
+      headline: "",
+      badges: [],
+      sections: [],
+      actions: [],
+      footer_notice: ""
+    },
+    errors
+  };
+  output.presentation_mock = classificationCard(output);
+  return output;
+}
+
+function scoreTaxonomy(text: string, categoryHint?: string): Score[] {
+  const normalized = normalizeText(text);
+  return taxonomyData.items
+    .map((item) => {
+      let score = 0;
+      let matches = 0;
+      for (const keyword of item.keywords) {
+        if (normalized.includes(normalizeText(keyword))) {
+          score += keyword.length >= 4 ? 3 : 2;
+          matches += 1;
+        }
+      }
+      if (categoryHint && categoryHint !== "unknown" && categoryMatches(item, categoryHint)) {
+        score += 1.5;
+      }
+      return { item, score, matches };
+    })
+    .sort((a, b) => b.score - a.score || b.matches - a.matches || a.item.code.localeCompare(b.item.code));
+}
+
+function categoryMatches(item: TaxonomyItem, hint: string): boolean {
+  const group = item.group;
+  if (hint === "road_walkway") return group.includes("도로") || group.includes("보행");
+  if (hint === "public_facility") return group.includes("시설");
+  if (hint === "environment_sanitation") return group.includes("환경");
+  if (hint === "advertising_obstruction") return group.includes("광고") || group.includes("적치");
+  if (hint === "safety_accessibility") return group.includes("안전") || group.includes("접근성");
+  if (hint === "parking_mobility") return group.includes("주차") || group.includes("이동");
+  return false;
+}
+
+function routingFor(channelFamily: ChannelFamily): ClassificationOutput["routing"] {
+  const primary = channelsData[channelFamily];
+  const local = channelFamily === "LOCAL_CIVIC_VERIFY" ? null : channelsData.LOCAL_CIVIC_VERIFY;
+  const candidates = [primary, local].filter(Boolean).map((candidate) => ({
+    label: candidate!.label,
+    why: candidate!.why,
+    verify_needed: candidate!.verify_needed
+  }));
+  return {
+    channel_family: channelFamily,
+    channel_candidates: candidates,
+    verify_needed: candidates.some((candidate) => candidate.verify_needed),
+    routing_confidence: primary.routing_confidence,
+    region_note: safetyRules.region_note
+  };
+}
+
+function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmergency>>, original: string): ClassificationOutput {
+  const routing = routingFor("EMERGENCY_DIRECT");
+  const output: ClassificationOutput = {
+    ok: true,
+    result_type: "emergency_redirect",
+    issue: { code: emergency.code, label_ko: emergency.label_ko, group: "긴급" },
+    confidence: 1,
+    alternatives: [],
+    priority: {
+      level: "emergency_redirect",
+      is_emergency: true,
+      explanation: "생활불편 초안을 만들 상황이 아니라 공식 긴급 채널에 직접 연락해야 할 수 있습니다."
+    },
+    routing,
+    evidence: {
+      required: ["안전한 장소에서 상황 확인", "공식 긴급 채널에 직접 연락"],
+      optional: [],
+      avoid: ["현장 접근", "사진 촬영을 위해 위험 지역에 머무르기", "민원 초안 작성으로 대응 지연"]
+    },
+    safety: {
+      pii_detected: false,
+      masked_description: original,
+      forbidden_claims_removed: [],
+      emergency_redirect: {
+        label: "공식 긴급 채널 직접 연락",
+        numbers: emergency.numbers,
+        message: emergency.message
+      },
+      notices: safetyRules.disclaimers
+    },
+    draft_policy: { can_draft: false, reason: "긴급 또는 즉시 위험 가능성이 있어 초안 생성을 차단했습니다." },
+    user_messages: {
+      summary: emergency.message,
+      next_action: "안전한 곳에서 공식 긴급 채널에 직접 연락하세요.",
+      clarifying_question: null
+    },
+    presentation_mock: {
+      version: "0.1",
+      card_type: "safety_redirect_card",
+      headline: "",
+      badges: [],
+      sections: [],
+      actions: [],
+      footer_notice: ""
+    },
+    errors: []
+  };
+  output.presentation_mock = classificationCard(output);
+  return output;
+}
+
+function makeUnclearOutput(text: string, piiDetected: boolean, removed: string[], errors: SosError[]): ClassificationOutput {
+  const routing = routingFor("NONE");
+  const output: ClassificationOutput = {
+    ok: true,
+    result_type: "needs_clarification",
+    issue: { code: "UNCLEAR", label_ko: "명확화 필요", group: "확인 필요" },
+    confidence: 0,
+    alternatives: [],
+    priority: { level: "normal", is_emergency: false, explanation: "입력만으로 유형을 확정하기 어렵습니다." },
+    routing,
+    evidence: { required: [], optional: [], avoid: ["실명", "연락처", "차량번호", "좌표", "처벌 요구"] },
+    safety: {
+      pii_detected: piiDetected,
+      masked_description: text,
+      forbidden_claims_removed: removed,
+      emergency_redirect: null,
+      notices: safetyRules.disclaimers
+    },
+    draft_policy: { can_draft: false, reason: "무엇이/어디서/어떤 위험인지 보강이 필요합니다." },
+    user_messages: {
+      summary: "아직 생활불편 유형을 확정하기 어렵습니다.",
+      next_action: "무엇이, 어디서, 어떤 위험이 있는지 한 줄만 더 적어주세요.",
+      clarifying_question: "무엇이 불편한가요? 예: 보도블록 파손, 가로등 고장, 쓰레기 방치 등"
+    },
+    presentation_mock: {
+      version: "0.1",
+      card_type: "needs_clarification",
+      headline: "조금만 더 알려주세요",
+      badges: ["확인 필요"],
+      sections: [{ title: "필요한 정보", items: ["무엇이", "어디서", "어떤 위험인지"] }],
+      actions: [],
+      footer_notice: "동네SOS는 실제 접수·전송을 하지 않는 신고 준비 도구입니다."
+    },
+    errors
+  };
+  return output;
+}
+
+function makeOutOfScopeOutput(text: string, piiDetected: boolean, removed: string[], errors: SosError[]): ClassificationOutput {
+  const output = makeUnclearOutput(text, piiDetected, removed, [
+    ...errors,
+    { code: "E_OUT_OF_SCOPE", severity: "blocking", message: "생활 공공시설·환경 불편 준비 범위가 아닙니다." }
+  ]);
+  output.result_type = "out_of_scope";
+  output.issue = { code: "OUT_OF_SCOPE", label_ko: "범위 밖", group: "범위 밖" };
+  output.draft_policy = { can_draft: false, reason: "사인 간 분쟁, 법률 문서, 처벌 요구는 동네SOS 범위가 아닙니다." };
+  output.user_messages.summary = "동네SOS는 생활 공공시설·환경 불편의 신고 준비만 돕습니다.";
+  return output;
+}
+
+function baseFailure(code: string, message: string, resultType: ResultType, issueCode: string, label: string): ClassificationOutput {
+  const routing = routingFor("NONE");
+  return {
+    ok: false,
+    result_type: resultType,
+    issue: { code: issueCode, label_ko: label, group: "확인 필요" },
+    confidence: 0,
+    alternatives: [],
+    priority: { level: "normal", is_emergency: false, explanation: message },
+    routing,
+    evidence: { required: [], optional: [], avoid: [] },
+    safety: {
+      pii_detected: false,
+      masked_description: "",
+      forbidden_claims_removed: [],
+      emergency_redirect: null,
+      notices: safetyRules.disclaimers
+    },
+    draft_policy: { can_draft: false, reason: message },
+    user_messages: { summary: message, next_action: "입력을 보강해 주세요.", clarifying_question: message },
+    presentation_mock: {
+      version: "0.1",
+      card_type: "needs_clarification",
+      headline: "입력을 확인해 주세요",
+      badges: ["확인 필요"],
+      sections: [{ title: "안내", text: message }],
+      actions: [],
+      footer_notice: "동네SOS는 실제 접수·전송을 하지 않는 신고 준비 도구입니다."
+    },
+    errors: [{ code, severity: "blocking", message }]
+  };
+}

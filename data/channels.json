@@ -1,0 +1,38 @@
+{
+  "OFFICIAL_SAFETY_CIVIC": {
+    "label": "안전신문고 등 공식 안전·생활불편 접수 채널",
+    "why": "생활 안전, 공공시설 파손, 통행 위험 관련 접수 준비에 적합한 일반 채널군입니다.",
+    "verify_needed": true,
+    "routing_confidence": "general_only"
+  },
+  "LOCAL_CIVIC_VERIFY": {
+    "label": "해당 지자체 생활민원 창구",
+    "why": "세부 담당 부서와 접수 방식은 지역마다 달라 공식 채널에서 확인이 필요합니다.",
+    "verify_needed": true,
+    "routing_confidence": "general_only"
+  },
+  "LOCAL_DEPARTMENT_VERIFY": {
+    "label": "해당 지자체 담당 부서 또는 생활민원 창구",
+    "why": "광고물, 공원, 환경, 시설 담당은 지역별로 다를 수 있습니다.",
+    "verify_needed": true,
+    "routing_confidence": "general_only"
+  },
+  "MOBILITY_OPERATOR_VERIFY": {
+    "label": "지자체 생활민원 창구 또는 이동수단 운영사 확인 채널",
+    "why": "공유 킥보드 등은 지자체와 운영사 처리 경로가 함께 존재할 수 있어 확인이 필요합니다.",
+    "verify_needed": true,
+    "routing_confidence": "general_only"
+  },
+  "EMERGENCY_DIRECT": {
+    "label": "112·119 등 공식 긴급 채널 직접 연락",
+    "why": "생활불편 초안 작성이 아니라 즉시 위험 대응이 우선일 수 있습니다.",
+    "verify_needed": false,
+    "routing_confidence": "high"
+  },
+  "NONE": {
+    "label": "범위 밖",
+    "why": "동네SOS의 생활 공공시설·환경 불편 준비 범위가 아닙니다.",
+    "verify_needed": true,
+    "routing_confidence": "general_only"
+  }
+}

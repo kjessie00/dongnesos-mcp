@@ -1,0 +1,8 @@
+node_modules/
+dist/
+deploy/playmcp/evidence/
+deploy/playmcp/package/
+.env
+.env.*
+npm-debug.log*
+.DS_Store

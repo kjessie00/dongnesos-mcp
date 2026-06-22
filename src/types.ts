@@ -1,0 +1,211 @@
+export type PriorityLevel = "low" | "normal" | "quick" | "emergency_redirect";
+
+export type ResultType =
+  | "classification"
+  | "emergency_redirect"
+  | "needs_clarification"
+  | "out_of_scope"
+  | "error";
+
+export type DraftResultType =
+  | "draft"
+  | "blocked_emergency"
+  | "needs_more_facts"
+  | "out_of_scope"
+  | "error";
+
+export type ChannelFamily =
+  | "OFFICIAL_SAFETY_CIVIC"
+  | "LOCAL_CIVIC_VERIFY"
+  | "LOCAL_DEPARTMENT_VERIFY"
+  | "MOBILITY_OPERATOR_VERIFY"
+  | "EMERGENCY_DIRECT"
+  | "NONE";
+
+export interface TaxonomyItem {
+  code: string;
+  label_ko: string;
+  group: string;
+  keywords: string[];
+  channel_family: ChannelFamily;
+  priority: Exclude<PriorityLevel, "emergency_redirect">;
+  evidence_required: string[];
+  evidence_optional: string[];
+  evidence_avoid: string[];
+  request_phrase: string;
+  caution: string[];
+}
+
+export interface SpecialCode {
+  code: string;
+  label_ko: string;
+  draft_allowed: boolean;
+}
+
+export interface TaxonomyData {
+  schema_version: string;
+  taxonomy_size: number;
+  items: TaxonomyItem[];
+  special_codes: SpecialCode[];
+}
+
+export interface ChannelCandidate {
+  label: string;
+  why: string;
+  verify_needed: boolean;
+}
+
+export interface ChannelMeta extends ChannelCandidate {
+  routing_confidence: "general_only" | "medium" | "high";
+}
+
+export type ChannelsData = Record<ChannelFamily, ChannelMeta>;
+
+export interface SafetyRules {
+  emergency_triggers: Record<string, string[]>;
+  emergency_messages: Record<string, string>;
+  out_of_scope_keywords: string[];
+  forbidden_phrases: string[];
+  disclaimers: string[];
+  photo_privacy_note: string;
+  region_note: string;
+}
+
+export interface CopyRules {
+  base_draft_template: string;
+  neighbor_share_template: string;
+  fallback_where: string;
+  fallback_when: string;
+  fallback_impact: string;
+  short_problem_default: string;
+}
+
+export interface ClassifyInput {
+  description: string;
+  region_hint?: string;
+  where_hint?: string;
+  has_photo?: boolean;
+  category_hint?:
+    | "road_walkway"
+    | "public_facility"
+    | "environment_sanitation"
+    | "advertising_obstruction"
+    | "safety_accessibility"
+    | "parking_mobility"
+    | "unknown";
+  language?: "ko";
+}
+
+export interface SosError {
+  code: string;
+  severity: "info" | "warning" | "blocking";
+  message: string;
+}
+
+export interface PresentationMock {
+  version: string;
+  card_type: "classification_card" | "draft_card" | "safety_redirect_card" | "share_vote_card" | "needs_clarification";
+  headline: string;
+  badges: string[];
+  sections: Array<{ title: string; items?: string[]; text?: string }>;
+  actions?: Array<Record<string, unknown>>;
+  footer_notice: string;
+}
+
+export interface ClassificationOutput {
+  ok: boolean;
+  result_type: ResultType;
+  issue: {
+    code: string;
+    label_ko: string;
+    group: string;
+  };
+  confidence: number;
+  alternatives: Array<{ code: string; label_ko: string; confidence: number }>;
+  priority: {
+    level: PriorityLevel;
+    is_emergency: boolean;
+    explanation: string;
+  };
+  routing: {
+    channel_family: ChannelFamily;
+    channel_candidates: ChannelCandidate[];
+    verify_needed: boolean;
+    routing_confidence: "general_only" | "medium" | "high";
+    region_note: string;
+  };
+  evidence: {
+    required: string[];
+    optional: string[];
+    avoid: string[];
+  };
+  safety: {
+    pii_detected: boolean;
+    masked_description: string;
+    forbidden_claims_removed: string[];
+    emergency_redirect: null | {
+      label: string;
+      numbers: string[];
+      message: string;
+    };
+    notices: string[];
+  };
+  draft_policy: {
+    can_draft: boolean;
+    reason: string;
+  };
+  user_messages: {
+    summary: string;
+    next_action: string;
+    clarifying_question: string | null;
+  };
+  presentation_mock: PresentationMock;
+  errors: SosError[];
+}
+
+export interface DraftInput {
+  issue_code: string;
+  facts: {
+    what: string;
+    where_general?: string;
+    when_observed?: string;
+    impact?: string;
+    photo_note?: string;
+  };
+  classification_snapshot?: Partial<ClassificationOutput>;
+  target_channel_family?:
+    | "OFFICIAL_SAFETY_CIVIC"
+    | "LOCAL_CIVIC_VERIFY"
+    | "LOCAL_DEPARTMENT_VERIFY"
+    | "MOBILITY_OPERATOR_VERIFY"
+    | "unknown";
+  tone?: "neutral" | "formal" | "brief";
+  include_neighbor_share_text?: boolean;
+  language?: "ko";
+}
+
+export interface DraftOutput {
+  ok: boolean;
+  result_type: DraftResultType;
+  draft: null | {
+    title: string;
+    body: string;
+    copy_block: string;
+    suggested_channel_label: string;
+    evidence_checklist: string[];
+    placeholders_to_fill: string[];
+  };
+  share: {
+    neighbor_text: string;
+    private_note: string;
+  };
+  safety: {
+    pii_detected: boolean;
+    masked_fields: string[];
+    neutralized_phrases: string[];
+    disclaimers: string[];
+    photo_privacy_note: string;
+  };
+  presentation_mock: PresentationMock;
+  errors: SosError[];
+}

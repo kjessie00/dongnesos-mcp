@@ -1,0 +1,62 @@
+[
+  {
+    "id": "F01",
+    "description": "집 앞 보도블록이 깨져서 유모차가 걸려요.",
+    "expected_issue_code": "ROAD_SIDEWALK_DAMAGE",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F02",
+    "description": "지하철역 앞 점자블록이 떨어져 나갔어요.",
+    "expected_issue_code": "TACTILE_PAVING_DAMAGE",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F03",
+    "description": "골목에 종량제 안 쓴 쓰레기가 계속 쌓여 있어요.",
+    "expected_issue_code": "ILLEGAL_DUMPING",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F04",
+    "description": "사거리 신호등 근처에 현수막이 시야를 가려요.",
+    "expected_issue_code": "ILLEGAL_BANNER",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F05",
+    "description": "골목 가로등 두 개가 며칠째 안 켜져서 밤에 너무 어두워요.",
+    "expected_issue_code": "STREETLIGHT_OUT",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F06",
+    "description": "차도에 큰 구멍이 있어서 차가 지나갈 때마다 쿵 해요.",
+    "expected_issue_code": "ROAD_POTHOLE",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F07",
+    "description": "복도에서 가스 냄새가 심하게 나요.",
+    "expected_issue_code": "EMERGENCY_GAS",
+    "expected_result_type": "emergency_redirect"
+  },
+  {
+    "id": "F08",
+    "description": "소화전 앞에 12가3456 차량이 계속 서 있어요.",
+    "expected_issue_code": "ILLEGAL_PARKING_SAFETY",
+    "expected_result_type": "classification"
+  },
+  {
+    "id": "F09",
+    "description": "앞에 뭔가 너무 위험해요.",
+    "expected_issue_code": "UNCLEAR",
+    "expected_result_type": "needs_clarification"
+  },
+  {
+    "id": "F10",
+    "description": "옆집 김OO가 일부러 쓰레기 버린 것 같은데 처벌받게 써줘.",
+    "expected_issue_code": "OUT_OF_SCOPE",
+    "expected_result_type": "out_of_scope"
+  }
+]

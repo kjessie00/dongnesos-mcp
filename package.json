@@ -1,0 +1,41 @@
+{
+  "name": "dongnesos-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DongneSOS PlayMCP candidate: civic inconvenience classification and report preparation MCP server.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/src/server.js",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "validate:data": "tsx scripts/validate_data.ts",
+    "scan:policy": "tsx scripts/static_policy_scan.ts",
+    "smoke:core": "tsx scripts/smoke_mcp.ts",
+    "smoke:http": "tsx scripts/smoke_http_mcp.ts",
+    "smoke:dist": "node scripts/smoke_dist_start.mjs",
+    "smoke:endpoint": "tsx scripts/smoke_endpoint_mcp.ts",
+    "smoke:docker": "node scripts/smoke_docker_runtime.mjs",
+    "image:build:amd64": "docker build --platform linux/amd64 -t dongnesos-mcp:playmcp-amd64 .",
+    "image:push:playmcp": "node scripts/push_playmcp_image.mjs",
+    "preflight:release": "node scripts/preflight_release.mjs",
+    "package:deploy": "node scripts/package_deploy_bundle.mjs",
+    "verify:bundle": "node scripts/verify_deploy_bundle.mjs",
+    "evidence:submission": "node scripts/write_submission_evidence.mjs",
+    "check": "npm run validate:data && npm run scan:policy && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "^5.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.3",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
