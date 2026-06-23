@@ -144,6 +144,7 @@ const lines = [
   "## PlayMCP UI",
   "",
   `- Temporary registration status: ${envOrPending("PLAYMCP_TEMP_REGISTRATION_STATUS")}`,
+  `- Temporary registration evidence: ${envOrPending("PLAYMCP_TEMP_REGISTRATION_EVIDENCE")}`,
   `- Screenshot path: ${envOrPending("PLAYMCP_SCREENSHOT_PATH")}`,
   `- Review request status: ${envOrPending("PLAYMCP_REVIEW_REQUEST_STATUS")}`,
   `- Preliminary submission timestamp: ${envOrPending("PLAYMCP_PRELIMINARY_SUBMISSION_TIMESTAMP")}`,

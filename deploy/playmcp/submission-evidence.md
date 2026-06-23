@@ -4,7 +4,7 @@ Canonical generated evidence is written to
 `deploy/playmcp/evidence/submission-evidence.generated.md`.
 
 Last reviewed state: PlayMCP temporary registration Online, Tools 2, endpoint
-updated to v2, review not requested. Final review request and one-time
+updated to v3, review not requested. Final review request and one-time
 preliminary submission remain blocked until Jessie explicitly approves them.
 
 ## Local Verification
@@ -23,8 +23,8 @@ preliminary submission remain blocked until Jessie explicitly approves them.
 
 ## Remote Verification
 
-- Endpoint: `https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp`
-- Deployment id / revision: `playmcp-in-kc-375`
+- Endpoint: `https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp`
+- Deployment id / revision: `playmcp-in-kc-487`
 - `GET /healthz`: PASS
 - MCP `tools/list`: `classify_civic_issue`, `draft_civic_report`
 - MCP schema check: PASS
@@ -38,7 +38,8 @@ preliminary submission remain blocked until Jessie explicitly approves them.
 ## PlayMCP UI
 
 - Temporary registration status: PASS, Online, Tools 2
-- Screenshot path: `deploy/playmcp/evidence/playmcp-temp-registration-v2.png`
+- API readback evidence: `deploy/playmcp/evidence/playmcp-temp-registration-v3-status.json`
+- Screenshot path: PENDING
 - Review request status: NOT_REQUESTED
 - Preliminary submission timestamp: PENDING
 

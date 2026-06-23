@@ -24,7 +24,7 @@ https://github.com/kjessie00/dongnesos-mcp
 Current PlayMCP endpoint:
 
 ```text
-https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp
+https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp
 ```
 
 ## Actual Use Verification
@@ -39,7 +39,7 @@ Run this from the local repo:
 
 ```bash
 cd /Users/jessiek/StudioProjects/dongnesos-mcp
-MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
+MCP_URL=https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp \
 EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke-manual-use.json \
 npm run smoke:endpoint
 ```
@@ -60,7 +60,7 @@ Run this after every PlayMCP in KC rebuild or endpoint change:
 
 ```bash
 cd /Users/jessiek/StudioProjects/dongnesos-mcp
-MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
+MCP_URL=https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp \
 COMMIT_EXPECTED=$(git rev-parse --short HEAD) \
 EVIDENCE_OUT=deploy/playmcp/evidence/remote-actual-use-p1.json \
 npm run smoke:actual-use:endpoint
