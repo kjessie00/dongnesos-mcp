@@ -54,7 +54,31 @@ Pass means:
 - An emergency sample blocks drafting.
 - Emergency PII is masked before being returned.
 
-### 2. Human-in-the-Loop PlayMCP Use
+### 2. Automated Actual-Use Regression Smoke
+
+Run this after every PlayMCP in KC rebuild or endpoint change:
+
+```bash
+cd /Users/jessiek/StudioProjects/dongnesos-mcp
+MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
+COMMIT_EXPECTED=$(git rev-parse --short HEAD) \
+EVIDENCE_OUT=deploy/playmcp/evidence/remote-actual-use-p1.json \
+npm run smoke:actual-use:endpoint
+```
+
+Pass means the deployed endpoint matches the P1 user-story fixes:
+
+- Copy-ready drafts do not duplicate the title at the top of `copy_block`.
+- A streetlight outage draft is not blocked merely because the user mentions
+  general `범죄 불안`.
+- Apartment unit text such as `101동 1203호` is masked as `[동호수 비공개]`, not
+  as a vehicle number fragment.
+- Out-of-scope text still neutralizes legal certainty and punishment demands
+  before returning.
+- Neighbor-help style requests remain out of the current civic-report MVP and
+  do not get forced into a civic complaint draft.
+
+### 3. Human-in-the-Loop PlayMCP Use
 
 In the PlayMCP temporary registration or a ChatGPT/PlayMCP client session, try
 these prompts as if you are an ordinary user:
@@ -83,7 +107,7 @@ Manual pass criteria:
 - No phone number, exact home address, vehicle number, real name, or precise
   coordinates survive in copy-ready text.
 
-### 3. Reviewer Demo Script
+### 4. Reviewer Demo Script
 
 Use this sequence in a live review:
 
@@ -103,6 +127,7 @@ Evidence to capture after a live manual run:
 - Screenshot or copied transcript of the normal case.
 - Screenshot or copied transcript of the emergency PII case.
 - Fresh `remote-smoke-manual-use.json`.
+- Fresh `remote-actual-use-p1.json`.
 
 ## Neighbor Help Exchange Expansion
 

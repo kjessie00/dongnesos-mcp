@@ -31,6 +31,10 @@ npm run evidence:submission
 MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
 EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json \
 npm run smoke:endpoint
+MCP_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
+COMMIT_EXPECTED=$(git rev-parse --short HEAD) \
+EVIDENCE_OUT=deploy/playmcp/evidence/remote-actual-use-p1.json \
+npm run smoke:actual-use:endpoint
 DEPLOYED_ENDPOINT_URL=https://dongnesos-mcp-v2.playmcp-endpoint.kakaocloud.io/mcp \
 DEPLOYMENT_ID=playmcp-in-kc-375 \
 PLAYMCP_TEMP_REGISTRATION_STATUS='PASS: temporary registration Online, Tools 2, endpoint updated to v2, review not requested' \
@@ -78,6 +82,10 @@ Expected local proof:
   missing remote or PlayMCP proof as `PENDING`.
 - Remote endpoint smoke records health, tools schema exposure, normal classify,
   normal draft, emergency classify, and emergency draft-block evidence.
+- Remote actual-use smoke records P1 user-story regressions: no duplicate draft
+  title, streetlight crime-anxiety drafting, apartment-unit masking,
+  out-of-scope forbidden-claim neutralization, and personal-help
+  non-classification.
 
 ## Required Remote Evidence
 
@@ -96,6 +104,8 @@ After Kakao Cloud deployment, capture:
 - Emergency sample showing draft blocked: PASS
 - Emergency sample showing PII masked before redirect: PASS
 - `deploy/playmcp/evidence/remote-smoke.json` path: recorded
+- `deploy/playmcp/evidence/remote-actual-use-p1.json` path: PASS after the
+  endpoint has been rebuilt from the current Git commit
 - PlayMCP temporary registration status/screenshot: Online / `deploy/playmcp/evidence/playmcp-temp-registration-v2.png`
 - Jessie review result: PENDING
 - One-time preliminary submission timestamp: PENDING

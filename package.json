@@ -18,6 +18,7 @@
     "smoke:http": "tsx scripts/smoke_http_mcp.ts",
     "smoke:dist": "node scripts/smoke_dist_start.mjs",
     "smoke:endpoint": "tsx scripts/smoke_endpoint_mcp.ts",
+    "smoke:actual-use:endpoint": "tsx scripts/smoke_actual_use_endpoint.ts",
     "smoke:docker": "node scripts/smoke_docker_runtime.mjs",
     "image:build:amd64": "docker build --platform linux/amd64 -t dongnesos-mcp:playmcp-amd64 .",
     "image:push:playmcp": "node scripts/push_playmcp_image.mjs",
