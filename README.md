@@ -110,6 +110,9 @@ smoke covering `tools/list` schemas, `classify_civic_issue`, and
 
 For the review narrative and sample cases, see `DEMO_SCRIPT.md`.
 
+For actual-use verification steps and the future `이웃 도움 교류` expansion
+design, see `docs/actual-use-and-neighbor-help-design.md`.
+
 For owner approval and external deployment stop rules, see
 `deploy/playmcp/owner-approval-packet.md`.
 

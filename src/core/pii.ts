@@ -23,6 +23,11 @@ const patterns: Array<{ name: string; regex: RegExp; replacement: string }> = [
     replacement: "[주민번호 패턴 비공개]"
   },
   {
+    name: "unit_address",
+    regex: /\d{1,4}\s?동\s?\d{1,4}\s?호(?![A-Za-z0-9가-힣])/g,
+    replacement: "[동호수 비공개]"
+  },
+  {
     name: "vehicle_plate",
     regex: /\b\d{2,3}\s?[가-힣]\s?\d{4}\b/g,
     replacement: "[차량정보 비공개]"
@@ -36,11 +41,6 @@ const patterns: Array<{ name: string; regex: RegExp; replacement: string }> = [
     name: "precise_coordinates",
     regex: /\b3[3-8]\.\d{3,}\s*,\s*12[4-9]\.\d{3,}\b/g,
     replacement: "[정밀 위치 비공개]"
-  },
-  {
-    name: "unit_address",
-    regex: /\b\d{1,4}\s?동\s?\d{1,4}\s?호\b/g,
-    replacement: "[개인 주소 비공개]"
   },
   {
     name: "masked_person_name",

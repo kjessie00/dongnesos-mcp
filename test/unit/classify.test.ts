@@ -31,4 +31,16 @@ describe("classifyCivicIssue", () => {
     assert.ok(output.safety.masked_description.includes("[전화번호 비공개]"));
     assert.ok(output.errors.some((error) => error.code === "E_PII_MASKED"));
   });
+
+  it("neutralizes forbidden legal assertions even when returning out of scope", () => {
+    const output = classifyCivicIssue({
+      description: "OO식당이 쓰레기 버렸으니 불법 확정이라고 쓰고 처벌받게 신고문 써줘."
+    });
+    assert.equal(output.result_type, "out_of_scope");
+    assert.ok(!output.safety.masked_description.includes("불법 확정"));
+    assert.ok(!output.safety.masked_description.includes("처벌받게"));
+    assert.ok(output.safety.forbidden_claims_removed.includes("forbidden_phrase"));
+    assert.ok(output.safety.forbidden_claims_removed.includes("forbidden_pattern"));
+    assert.ok(output.errors.some((error) => error.code === "E_FORBIDDEN_ASSERTION_REMOVED"));
+  });
 });

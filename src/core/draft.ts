@@ -9,11 +9,12 @@ import { draftCard } from "./presentationMock.js";
 export function draftCivicReport(input: DraftInput): DraftOutput {
   const errors: SosError[] = [];
   const what = normalizeText(input.facts?.what ?? "");
+  const impact = normalizeText(input.facts?.impact ?? "");
   if (what.length < 2) {
     return failure("needs_more_facts", "E_FACTS_TOO_THIN", "무엇이 불편한지 한 줄 설명이 필요합니다.");
   }
 
-  const emergency = detectEmergency(`${input.issue_code} ${what} ${input.facts?.impact ?? ""}`);
+  const emergency = detectDraftEmergency(input.issue_code, what, impact);
   if (isEmergencyCode(input.issue_code) || emergency) {
     return blockedEmergency(emergency?.message ?? "긴급 또는 즉시 위험 가능성이 있어 초안 생성을 차단했습니다.");
   }
@@ -25,7 +26,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
 
   const maskedWhat = maskPii(what);
   const maskedWhere = maskPii(input.facts?.where_general ?? "");
-  const maskedImpact = maskPii(input.facts?.impact ?? "");
+  const maskedImpact = maskPii(impact);
   const neutralWhat = neutralizeForbiddenClaims(maskedWhat.text);
   const neutralImpact = neutralizeForbiddenClaims(maskedImpact.text);
   const piiDetected = maskedWhat.detected || maskedWhere.detected || maskedImpact.detected;
@@ -41,7 +42,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
 
   const where = maskedWhere.text || copyRules.fallback_where;
   const when = normalizeText(input.facts?.when_observed ?? "") || copyRules.fallback_when;
-  const impact = neutralImpact.text || input.facts?.impact || defaultImpact(item);
+  const safeImpact = neutralImpact.text || impact || defaultImpact(item);
   const placeholders = [
     where === copyRules.fallback_where ? copyRules.fallback_where : null,
     when === copyRules.fallback_when ? copyRules.fallback_when : null
@@ -54,7 +55,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     short_problem: shortProblem(item, neutralWhat.text),
     what: neutralWhat.text,
     when_observed: when,
-    impact,
+    impact: safeImpact,
     request_phrase: item.request_phrase
   });
 
@@ -76,7 +77,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     draft: {
       title,
       body,
-      copy_block: `${title}\n\n${body}`,
+      copy_block: body,
       suggested_channel_label: suggested,
       evidence_checklist: evidence,
       placeholders_to_fill: placeholders
@@ -144,7 +145,29 @@ function defaultImpact(item: TaxonomyItem): string {
 
 function suggestedChannel(item: TaxonomyItem): string {
   const channel = channelsData[item.channel_family];
+  if (item.channel_family === "LOCAL_CIVIC_VERIFY") {
+    return `${channel.label} — 세부 접수처 확인 필요`;
+  }
   return `${channel.label} 또는 해당 지자체 생활민원 창구 — 세부 접수처 확인 필요`;
+}
+
+function detectDraftEmergency(issueCode: string, what: string, impact: string): ReturnType<typeof detectEmergency> {
+  if (isEmergencyCode(issueCode)) {
+    return detectEmergency(issueCode);
+  }
+  const direct = detectEmergency(what);
+  if (direct) return direct;
+
+  const impactEmergency = detectEmergency(impact);
+  if (!impactEmergency) return null;
+  if (impactEmergency.code === "EMERGENCY_POLICE" && isGeneralCrimeAnxiety(impact)) {
+    return null;
+  }
+  return impactEmergency;
+}
+
+function isGeneralCrimeAnxiety(text: string): boolean {
+  return /(범죄|치안)\s*(불안|우려|걱정)/.test(text);
 }
 
 function blockedEmergency(message: string): DraftOutput {

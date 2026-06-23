@@ -29,6 +29,7 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
   }
 
   const masked = maskPii(description);
+  const neutralized = neutralizeForbiddenClaims(masked.text);
   const emergency = detectEmergency(description);
   if (emergency) {
     const output = makeEmergencyOutput(emergency, masked.text, masked.detected);
@@ -48,11 +49,13 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
   }
 
   if (safetyRules.out_of_scope_keywords.some((term) => masked.text.includes(term))) {
-    return makeOutOfScopeOutput(masked.text, masked.detected, [], [
-      ...(masked.detected ? [{ code: "E_PII_MASKED", severity: "warning" as const, message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." }] : [])
+    return makeOutOfScopeOutput(neutralized.text, masked.detected, neutralized.removed, [
+      ...(masked.detected ? [{ code: "E_PII_MASKED", severity: "warning" as const, message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." }] : []),
+      ...(neutralized.removed.length
+        ? [{ code: "E_FORBIDDEN_ASSERTION_REMOVED", severity: "warning" as const, message: "처벌·비방·책임 단정으로 보일 수 있는 표현을 중립화했습니다." }]
+        : [])
     ]);
   }
-  const neutralized = neutralizeForbiddenClaims(masked.text);
 
   if (masked.detected) {
     errors.push({ code: "E_PII_MASKED", severity: "warning", message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." });

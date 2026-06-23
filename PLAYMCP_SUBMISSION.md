@@ -112,3 +112,7 @@ Owner approval and stop rules are recorded in
   version.
 - If PlayMCP UI accepts `Pro` without `Pro 확장`, treat the `Pro` label as the
   successful reviewer lane.
+- Actual-use QA and the future `이웃 도움 교류` design are documented in
+  `docs/actual-use-and-neighbor-help-design.md`. That neighbor-help mode is a
+  roadmap extension only; it must not be represented as implemented in the
+  current two-tool review candidate.
