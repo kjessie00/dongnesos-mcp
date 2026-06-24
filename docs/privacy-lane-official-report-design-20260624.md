@@ -54,6 +54,19 @@ Checked on 2026-06-24:
   국민신문고 민원 can include required complainant data and respondent/target data
   for certain petition handling:
   <https://www.acrc.go.kr/menu.es?mid=a10702000000>
+- 행정안전부's Safety e-Report page provides the primary source hierarchy for
+  report domains: `안전신고`, `불법 주정차 신고`, `자동차·교통위반 신고`, and
+  `생활 불편 신고`. Its listed examples include road/facility damage, workplace
+  safety, air/water pollution, fire safety, illegal parking zones, traffic
+  violations, number-plate/light/tuning violations, illegal ads, abandoned
+  bicycles/motorcycles, trash/waste, marine trash, illegal accommodation, and
+  energy overuse:
+  <https://www.mois.go.kr/frt/sub/a06/b10/safetyReport/screen.do>
+- 국민신문고's 민원소개 gives the fallback civil-petition frame outside
+  Safety e-Report: administrative inquiry/interpretation, policy or system
+  improvement proposal, and grievance/petition for relief from unlawful,
+  unfair, passive, or unreasonable administrative action:
+  <https://www.epeople.go.kr/nep/pttn/gnrlPttn/pttnNtrcnContent.npaid>
 
 DeepSearchTeam Pro Chat review:
 
@@ -97,6 +110,71 @@ The product promise becomes stronger:
 > DongneSOS does not merely "write a complaint." It separates official
 > report-only target identifiers from public community-safe text, then tells the
 > user why each sensitive item was retained, redacted, generalized, or blocked.
+
+## Official Type Basis
+
+DongneSOS should divide types, but the first layer should come from official
+reporting structures. Do not start from an arbitrary app taxonomy and then map
+it backward. Use this hierarchy:
+
+### Layer 0. Emergency Redirect
+
+Not a DongneSOS report draft. Safety e-Report app guidance says urgent fire,
+rescue, and emergency medical cases go to `119`, and public-safety/police
+cases go to `112`.
+
+Product rule:
+
+- Output no civic-report draft.
+- Mask reporter/bystander PII in the assistant-visible response.
+- Tell the user to use the direct emergency channel.
+
+### Layer 1. Safety e-Report Domains
+
+Use 행정안전부 Safety e-Report as the primary category frame for the current
+DongneSOS MVP:
+
+| Official domain | Official examples | DongneSOS role |
+|---|---|---|
+| `안전신고` | road/facility damage, construction/workplace safety, illegal river/valley facilities, air pollution, water pollution, fire safety, other safety/environment risks | Primary MVP lane for road, sidewalk, public facility, drainage, fire-safety-adjacent, and environment risk issues |
+| `불법 주정차 신고` | hydrant, intersection corner, bus stop, crosswalk, school zone, sidewalk, disabled/fire-lane zones, EV charging zones | Separate vehicle-target lane because target vehicle plate, location, timestamp, and app-captured photos can be required |
+| `자동차·교통위반 신고` | traffic violation, motorcycle violation, bus-lane violation, number-plate violations, light/reflector obstruction or damage, illegal tuning/disassembly/manipulation, other auto safety-standard violations | Adjacent lane; do not force into generic road-safety drafts because evidence and responsible agency differ |
+| `생활 불편 신고` | illegal ads, abandoned bicycle/motorcycle, trash/waste, marine trash, illegal accommodation, energy overuse and similar everyday inconvenience | Primary MVP lane for waste, illegal ads, abandoned bikes/scooters, and other non-emergency inconvenience issues |
+
+### Layer 2. 국민신문고 Fallback
+
+When a user issue is a civil petition but not clearly covered by Safety
+e-Report, use 국민신문고's public 민원 frame:
+
+| 국민신문고 frame | Use in DongneSOS |
+|---|---|
+| administrative inquiry or request for interpretation/explanation | "어느 기관/절차에 물어봐야 하나요?" style routing questions |
+| proposal for policy/system improvement | recurring local inconvenience that may need improvement request rather than incident report |
+| grievance/petition for relief from unlawful, unfair, passive, or unreasonable administrative action | user says an agency failed to act or caused administrative burden |
+
+Product rule: if the exact official route is uncertain, do not invent it. Return
+`LOCAL_CIVIC_VERIFY` or `needs_official_verification` and produce a neutral
+"관할 확인 요청" draft.
+
+### Layer 3. DongneSOS Internal Evidence/Privacy Profiles
+
+This layer is internal and should not be described as an official government
+classification. It tells the MCP how to handle evidence and privacy after the
+official domain is known.
+
+| Internal profile | Trigger | Privacy/evidence behavior |
+|---|---|---|
+| `vehicle_target` | illegal parking, traffic violation, vehicle plate violation, abandoned vehicle-like issues | target plate/time/location may be official-only; public share redacts plate |
+| `facility_location_target` | sidewalk, pothole, sign, streetlight, manhole, bus stop, park, public toilet | exact location/equipment id can be official-only; public share uses approximate location |
+| `waste_environment_target` | dumping, food waste, odor, sewer, water leak, drain flooding, animal carcass | location/photo can be official-only; do not identify alleged dumper without evidence |
+| `business_signage_target` | illegal banner, signboard, outdoor ad, sidewalk obstruction by shop object | business/sign may be official-only target; staff faces/phone numbers are removed |
+| `sensitive_person_boundary` | welfare-like concern, vulnerable person, health inference, home-entry help, personal neighbor help | usually public-share blocked; official route needs separate verification |
+| `public_notice_only` | user wants neighborhood warning or status update | no target identifiers; no accusation; only broad safety notice |
+
+This split avoids a common design error: official report category, legal
+responsibility, and privacy sensitivity are not the same thing. A vehicle plate
+is a target identifier in an illegal-parking official report, but a public PII
+risk in a neighborhood post.
 
 ## Policy Principles
 
