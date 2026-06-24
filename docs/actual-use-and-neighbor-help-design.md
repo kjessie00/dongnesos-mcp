@@ -7,6 +7,12 @@ from a future expansion inspired by local-neighbor help posts often seen in
 community apps such as Danggeun. The current submitted server remains a civic
 report preparation tool and still exposes exactly two MCP tools.
 
+Privacy design update on 2026-06-24: the current v1 implementation still masks
+PII-looking text early, but the stronger v2 design is lane-based. Official
+report text may need target identifiers, while public neighbor-share text must
+redact or generalize them. See
+[`privacy-lane-official-report-design-20260624.md`](/Users/jessiek/StudioProjects/dongnesos-mcp/docs/privacy-lane-official-report-design-20260624.md).
+
 ## Local Project Path
 
 Canonical local folder:
@@ -104,8 +110,12 @@ Manual pass criteria:
   local channel.
 - Emergency and immediate danger cases stop with direct official-channel
   guidance.
-- No phone number, exact home address, vehicle number, real name, or precise
-  coordinates survive in copy-ready text.
+- In the current v1 smoke, PII-like text should not survive in copy-ready text.
+  In the v2 lane design, this becomes more precise: reporter/bystander PII must
+  never appear in public copy; target identifiers such as vehicle plates or
+  exact locations may appear only in the `official_report` lane when needed for
+  official processing, and must be removed or generalized in the public
+  neighbor-share lane.
 
 ### 4. Reviewer Demo Script
 
