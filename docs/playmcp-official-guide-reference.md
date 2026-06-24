@@ -1,15 +1,63 @@
 # PlayMCP / Kakao Cloud Official Guide Reference
 
-Last refreshed: 2026-06-24 15:10 KST
+Last refreshed: 2026-06-24 15:45 KST
 
 This is the working source-of-truth document for DongneSOS PlayMCP deployment,
 registration, review, and Kakao/KakaoCloud optimization. Keep it updated before
 changing deployment, review state, Kakao API usage, or contest submission.
 
+## 0. Korean Quick Brief
+
+현재 DongneSOS 서버는 로컬이나 GitHub에 떠 있는 것이 아니라
+`PlayMCP in KC`가 만든 KakaoCloud 관리형 endpoint 위에서 실행된다.
+
+- 현재 살아 있는 런타임:
+  `https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp`
+- 헬스체크:
+  `https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/healthz`
+- PlayMCP in KC 상세 id: `487`
+- PlayMCP 개발자 콘솔 MCP id: `62426279747569122`
+- GitHub source of truth:
+  `https://github.com/kjessie00/dongnesos-mcp`
+
+중요한 상태 구분:
+
+- 서버 자체는 KakaoCloud에서 살아 있다.
+- 다만 현재 v3 런타임은 최신 Git 코드보다 오래된 빌드다.
+- 최신 코드에는 PlayMCP 리뷰 품질을 위한 tool annotations/output hardening이
+  들어갔지만, v3 원격 smoke는 아직 그 메타데이터를 못 보여준다.
+- 다음 필수 작업은 KakaoCloud Git source build로 새 endpoint를 만들고,
+  PlayMCP 개발자 콘솔에서 `정보 불러오기`로 도구 정보를 갱신한 뒤 원격
+  smoke/actual-use/output-review를 다시 통과시키는 것이다.
+
+Kakao API 활용 원칙:
+
+- 예선 리뷰 전 즉시 최적화 포인트는 KakaoCloud/PlayMCP 공식 배포, PlayMCP
+  등록/도구함/AI Chat 검증, Kakao Tools 본선 대비 구조화 output이다.
+- Kakao Local/Maps API는 제품 가치가 분명하지만, 현재 리뷰 후보에 즉시
+  붙이면 API key, 위치정보, quota, latency, privacy 리스크가 생긴다.
+- 그래서 리뷰 전에는 내부 Kakao API 호출을 추가하지 않는 것이 현재 최선이다.
+  본선/후속 버전에서는 사용자 명시 동의가 있을 때만 coarse location
+  normalization과 공공기관/공공장소 힌트로 제한해 붙인다.
+
 ## 1. Current DongneSOS Hosting Status
 
 DongneSOS is currently hosted on KakaoCloud through PlayMCP in KC. It is not
-served from the local machine, GitHub Pages, Vercel, or DockerHub.
+served from the local machine, GitHub Pages, Vercel, DockerHub, or a separate
+private server.
+
+Short answer for deployment-location questions:
+
+- Runtime host: PlayMCP in KC / KakaoCloud managed endpoint.
+- Active endpoint today: `dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io`.
+- Source of truth for code: GitHub `main` at
+  `https://github.com/kjessie00/dongnesos-mcp`.
+- Current blocker: the active v3 runtime is alive but stale. It does not yet
+  reflect the latest local/Git commit that added review-quality metadata and
+  output hardening.
+- The next deploy should remain a KakaoCloud Git source build. DockerHub is not
+  preferable for this project unless PlayMCP in KC Git builds repeatedly fail
+  for source-build-specific reasons.
 
 | Item | Current value |
 |---|---|
@@ -93,41 +141,86 @@ Specialist review after this retry:
 
 ## 2. Official Source Inventory
 
-Primary official pages to re-check before review or submission:
+Primary official pages to re-check before review, endpoint rebuild, Kakao API
+addition, or contest submission:
 
-- PlayMCP public site: `https://playmcp.kakao.com/`
-- PlayMCP developer console: `https://playmcp.kakao.com/console`
-- PlayMCP in KC: `https://playmcp.kakaocloud.io/`
-- PlayMCP in KC AI index: `https://playmcp.kakaocloud.io/llms.txt`
-- PlayMCP in KC AI guide: `https://playmcp.kakaocloud.io/ai/guide.md`
-- AGENTIC PLAYER 10 contest page:
-  `https://b.kakao.com/views/PlayMCP/AGENTIC_PlAYER_10`
-- Kakao press release, AGENTIC PLAYER 10:
-  `https://www.kakaocorp.com/page/detail/12059`
-- Kakao press release, PlayMCP toolbox:
-  `https://www.kakaocorp.com/page/detail/11817`
-- Kakao press release, PlayMCP beta open:
-  `https://www.kakaocorp.com/page/detail/11674`
-- Official Notion guide, PlayMCP server development:
-  `https://www.notion.so/MCP-2d89b97b4888808a9e1dc17a13e70187`
-- Official Notion help:
-  `https://www.notion.so/2189b97b4888803dbbdcef264e7eff58`
-- Official Notion review policy:
-  `https://www.notion.so/21b9b97b48888024922ec3dfcacf97e5`
-- Kakao Developers, Kakao Login REST API:
-  `https://developers.kakao.com/docs/en/kakaologin/rest-api`
-- Kakao Developers, Local API concepts:
-  `https://developers.kakao.com/docs/latest/en/local/common`
-- Kakao Maps API:
-  `https://apis.map.kakao.com/`
-- Kakao Maps Web API guide:
-  `https://apis.map.kakao.com/web/guide/`
-- Kakao Developers, Kakao Talk Channel REST API:
-  `https://developers.kakao.com/docs/latest/en/kakaotalk-channel/rest-api`
-- Kakao Developers, Kakao Talk Share:
-  `https://developers.kakao.com/docs/latest/en/kakaotalk-share/common`
-- Kakao Developers, Utility API status:
-  `https://developers.kakao.com/docs/latest/en/reference/utility`
+| Source | URL | What it controls for DongneSOS |
+|---|---|---|
+| PlayMCP public site | `https://playmcp.kakao.com/` | Public MCP browsing, toolbox, AI chat, developer entry |
+| PlayMCP AI index | `https://playmcp.kakao.com/llms.txt` | Official agent-readable map of PlayMCP, toolbox, AI chat, gateway, console, guides |
+| MCP gateway guide | `https://playmcp.kakao.com/llms/mcp-connection-guide.md` | OTT, OAuth token exchange, `mcporter`, gateway endpoint connection |
+| PlayMCP developer console | `https://playmcp.kakao.com/console` | Endpoint registration, `정보 불러오기`, temporary registration, review request |
+| PlayMCP in KC | `https://playmcp.kakaocloud.io/` | KakaoCloud MCP runtime deployment portal |
+| PlayMCP in KC AI index | `https://playmcp.kakaocloud.io/llms.txt` | Official agent-readable map of KakaoCloud hosting flow |
+| PlayMCP in KC AI guide | `https://playmcp.kakaocloud.io/ai/guide.md` | Git source build vs existing image build decision, API payload shape |
+| AGENTIC PLAYER 10 contest page | `https://b.kakao.com/views/PlayMCP/AGENTIC_PlAYER_10` | Contest flow, dates, eligibility, FAQ, final entry button |
+| Kakao press: AGENTIC PLAYER 10 | `https://www.kakaocorp.com/page/detail/12059` | Official contest framing, Kakao Tools exposure, dates, awards |
+| Kakao press: PlayMCP toolbox | `https://www.kakaocorp.com/page/detail/11817` | Toolbox concept, ChatGPT/Claude connector flow, Kakao account auth |
+| Kakao press: PlayMCP beta open | `https://www.kakaocorp.com/page/detail/11674` | Platform role, registered MCP testing, Kakao service examples |
+| Kakao Tech: PlayMCP platform dev | `https://tech.kakao.com/posts/734` | PlayMCP internal flow, Streamable HTTP, tools/list, tools/call, testing guidance |
+| Kakao Tech: MCP Player 10 results | `https://tech.kakao.com/posts/818` | Prior winners, judging hints, Kakao Tools direction, managed deployment Q&A |
+| Official Notion: service help | `https://kko.kakao.com/playmcp_guide` | Help hub and connection docs |
+| Official Notion: review policy | `https://kko.kakao.com/playmcp_review` | Review acceptance/rejection policy |
+| Official Notion: server development guide | `https://www.notion.so/MCP-2d89b97b4888808a9e1dc17a13e70187` | PlayMCP MCP server implementation rules |
+| Official Notion: Claude connection | `https://kko.kakao.com/connectclaude` | Claude connector setup |
+| Official Notion: ChatGPT connection | `https://kko.kakao.com/connectchatgpt` | ChatGPT connector setup |
+| Official Notion: PlayMCP AI chat connection | `https://kko.kakao.com/connectplaymcp` | PlayMCP AI chat/toolbox behavior |
+| Official Discord | `https://kko.kakao.com/playmcp_discord` | Developer support/escalation |
+| Kakao Developers REST API reference | `https://developers.kakao.com/docs/latest/en/rest-api/reference` | Generic Kakao API request/response/auth rules |
+| Kakao Developers Local API concepts | `https://developers.kakao.com/docs/latest/en/local/common` | Kakao Local capability, app activation, quotas |
+| Kakao Developers Local API REST | `https://developers.kakao.com/docs/en/local/dev-guide` | Address/place/coordinate endpoints and request fields |
+| Kakao Developers Login REST | `https://developers.kakao.com/docs/en/kakaologin/rest-api` | Kakao OAuth flow if persistent user identity is added later |
+| Kakao Maps API | `https://apis.map.kakao.com/` | Map rendering if a frontend/widget path needs it |
+| Kakao Maps Web API guide | `https://apis.map.kakao.com/web/guide/` | Browser map integration details |
+| Kakao Talk Channel REST API | `https://developers.kakao.com/docs/latest/en/kakaotalk-channel/rest-api` | Future support-channel integration only |
+| Kakao Talk Share | `https://developers.kakao.com/docs/latest/en/kakaotalk-share/common` | Future user-initiated share cards only |
+| Kakao Utility API status | `https://developers.kakao.com/docs/latest/en/reference/utility` | Kakao service status checks if we add Kakao API dependencies |
+| KakaoCloud service catalog | `https://docs.kakaocloud.com/en/service` | KakaoCloud service options: Secrets Manager, Kubernetes Engine, Kubeflow, Object Storage |
+| KakaoCloud LLM endpoint tutorial | `https://docs.kakaocloud.com/en/tutorial/machine-learning-ai/llm-endpoint` | KServe/InferenceService background for platform-deploy failures |
+
+Official docs extracted on 2026-06-24:
+
+- `playmcp.kakao.com/llms.txt` says PlayMCP is the MCP tool-linking platform and
+  playground; registered/approved MCP servers have ids, names, descriptions,
+  tool lists, and starter messages; a user's toolbox holds up to 10 MCP servers.
+- The PlayMCP MCP gateway endpoint is `https://playmcp.kakao.com/mcp`, uses
+  Bearer access tokens, and routes internally to the user's toolbox servers.
+- The developer console is the official surface for registering/editing MCP
+  servers and checking review state.
+- `playmcp.kakaocloud.io/ai/guide.md` says PlayMCP in KC deploys MCP servers on
+  KakaoCloud and produces endpoint URLs that must be registered in the PlayMCP
+  console.
+- The official hosting decision flow prefers Git source build when a Git repo
+  with a Dockerfile exists; existing-image registration is for already-pushed
+  container images.
+- Official Notion docs are public through the `kko.kakao.com` links, but the
+  rendered pages are Notion-backed. If a detail is decision-critical, re-fetch
+  the page chunk or verify in a logged-in browser before changing production
+  behavior.
+
+Direct source refresh performed on 2026-06-24 15:45 KST:
+
+- `https://playmcp.kakao.com/llms.txt` fetched successfully. It confirms
+  PlayMCP's roles: registered MCP server catalog, toolbox, AI chat, developer
+  console, and OAuth MCP gateway.
+- `https://playmcp.kakaocloud.io/llms.txt` fetched successfully. It confirms
+  PlayMCP in KC's role as the KakaoCloud hosting portal that creates endpoint
+  URLs for PlayMCP console registration.
+- `https://playmcp.kakaocloud.io/ai/guide.md` fetched successfully. It confirms
+  Git source build as the recommended route when a repo has a Dockerfile, and
+  existing-image registration when an image is already in a registry.
+- `https://playmcp.kakao.com/llms/mcp-connection-guide.md` fetched
+  successfully. It confirms the external-agent gateway endpoint
+  `https://playmcp.kakao.com/mcp`, OTT exchange flow, OAuth Bearer token use,
+  and `mcporter` configuration.
+- `https://b.kakao.com/views/PlayMCP/AGENTIC_PlAYER_10` opened successfully.
+  It confirms the four-step contest flow, two contest server limit, temporary
+  registration warning, full-public requirement after review, one-time final
+  entry, and judging criteria.
+- `kko.kakao.com` Notion redirect links are useful official links, but plain
+  `curl` returns the Notion app shell rather than clean body text. Use them as
+  canonical links and verify decision-critical details in the logged-in browser
+  or through rendered page extraction before changing review/submission state.
 
 ## 3. PlayMCP in KC / KakaoCloud Hosting Rules
 
@@ -185,6 +278,11 @@ DongneSOS implication:
 - The current Git source build path is correct and preferred.
 - DockerHub is not needed unless we choose an explicit image-publishing route.
 - GitHub is source control only; KakaoCloud is the live runtime.
+- The failed `dongnesos-mcp-v4` build passed image build/push but failed during
+  KakaoCloud KServe `InferenceService` creation. KakaoCloud's own ML serving
+  docs describe KServe `InferenceService` as the resource used to serve models
+  and Docker-built custom serving logic, so this error belongs to the
+  platform/runtime creation layer, not to GitHub source control.
 
 ## 4. AGENTIC PLAYER 10 Contest Flow
 
@@ -249,14 +347,70 @@ Recommended Kakao/KakaoCloud roadmap:
 
 | Area | Current decision | Rationale |
 |---|---|---|
-| PlayMCP in KC | Use now | Official preliminary hosting path |
-| PlayMCP console | Use now | Required registration/review layer |
-| Kakao Tools | Prepare if finalist | Official FAQ says finalist services must expose through Kakao Tools |
-| Kakao Tools Widget specs | Finalist track | Official FAQ says Kakao Tools supports widget specs and stricter MCP standards |
-| Kakao Maps / Local APIs | Consider later with consent | Useful for place context, but only if it avoids precise home-location leakage |
+| PlayMCP in KC | Use now | Official preliminary hosting path; this is where the server actually runs |
+| PlayMCP console | Use now | Required registration/review layer; `정보 불러오기` refreshes tool metadata |
+| PlayMCP toolbox / AI chat | Use for real-use validation | Official docs say PlayMCP AI chat uses toolbox tools by default |
+| PlayMCP MCP gateway | Do not add to this server | Gateway is for external agents consuming a user's toolbox, not for DongneSOS backend logic |
+| Kakao Tools | Prepare if finalist | Official contest materials say finalist services are exposed to KakaoTalk users through Kakao Tools |
+| Kakao Tools Widget specs | Finalist track | Prior Kakao Tech Q&A says richer JSON/widget rendering is planned/available in Kakao Tools contexts |
+| Kakao Maps / Local APIs | High-value later with consent | Local API can search places and convert address/coordinates; useful for district normalization and office hints |
+| Kakao API status Utility API | Medium | Useful only if we add Kakao API dependencies and need monitoring |
+| KakaoCloud Secrets Manager | High if API keys are added | KakaoCloud catalog lists it for centrally managing API keys/passwords |
+| KakaoCloud Object Storage | Medium later | Useful if we add non-sensitive public-office datasets or generated evidence archives |
+| KakaoCloud Kubeflow/KServe | Platform layer only | PlayMCP in KC already uses this kind of serving layer; do not self-manage unless required |
+| Kakao Login | Low now / medium later | Needed only for persistent profiles, consented helper matching, or account-specific state |
 | KakaoTalk data APIs | Do not add now | Needs official OAuth/consent and Kakao Tools context; never scrape or read chats |
-| Kakao account auth | Only if needed | Current tool is read-only and stateless; no login needed |
+| Kakao Talk Share | Low now / medium finalist | Use only as user-initiated sharing, not automated messaging |
+| Kakao Talk Channel API | Low now | Support/update channel only; not core civic triage |
 | External browser scraping | Avoid | Review policy penalizes unnecessary redirects/crawling and privacy risk |
+
+Concrete Kakao API design options:
+
+### Option A: no internal Kakao API for preliminary review
+
+Keep the current stateless MCP server and use Kakao only through:
+
+1. PlayMCP in KC runtime hosting.
+2. PlayMCP console registration.
+3. PlayMCP AI chat/toolbox validation.
+4. Kakao Tools preparation in docs/submission.
+
+This is the recommended immediate path because it reduces privacy, secret,
+latency, quota, and review risk.
+
+### Option B: consented Kakao Local enrichment after remote rebuild passes
+
+Add an optional enrichment path only when the user intentionally provides a
+place/address or district hint:
+
+1. `classify_civic_issue` remains usable with no location.
+2. If a coarse location is provided, call Kakao Local API with a short timeout.
+3. Normalize to district/road/administrative-area hints only.
+4. Never persist raw coordinates.
+5. Never require Kakao Local success to draft a report.
+6. Return a fallback if Kakao Local quota/network fails.
+
+This can improve purpose fit because DongneSOS is neighborhood/civic-report
+oriented, but it must not turn into precise home-location collection.
+
+### Option C: helper-matching / "neighbor help" future track
+
+If DongneSOS later supports personal-neighborhood help requests inspired by
+local community apps, design it as a separate consent-gated workflow:
+
+1. Separate civic-report tools from helper-coordination tools.
+2. Require explicit user-provided task type, approximate area, time window, and
+   safety constraints.
+3. Use Kakao Login only if persistent identity/consent is required.
+4. Use Kakao Local only for coarse area normalization or nearby public place
+   suggestions.
+5. Use Kakao Talk Share only for user-initiated share cards.
+6. Do not expose contact details, exact home address, unit number, door code, or
+   private household access data in tool output.
+7. Do not broker paid work, emergency care, medical/legal decisions, or unsafe
+   in-person meetings without a stronger policy layer.
+
+This is a finalist/product-expansion design, not a pre-review blocker.
 
 Potential Kakao API additions, ranked by fit:
 
@@ -282,6 +436,200 @@ Practical next step:
   consent-gated coordination layer first. Kakao APIs should support identity,
   map context, or share surfaces only after the safety model is clear; the MCP
   must not infer, expose, or broker private household access by default.
+
+## 5B. Kakao / KakaoCloud Optimization Blueprint
+
+This is the implementation blueprint to keep Kakao integration strong without
+adding low-value or risky API calls before PlayMCP review.
+
+### Stage 0: current review candidate
+
+Use Kakao surfaces at the platform layer only:
+
+- KakaoCloud runtime: PlayMCP in KC Git source build.
+- KakaoCloud endpoint domain: `*.playmcp-endpoint.kakaocloud.io`.
+- PlayMCP developer console: temporary registration, endpoint metadata refresh,
+  review state, visibility state.
+- PlayMCP toolbox / AI chat: real user-flow validation.
+- Kakao Tools: design target for finalist output compatibility.
+
+Do not add internal Kakao API calls in this stage:
+
+- No Kakao Login.
+- No KakaoTalk read/write APIs.
+- No Kakao Local/Maps calls.
+- No automatic civic submission.
+- No precise home-location capture.
+
+Reasoning:
+
+- The contest explicitly requires KakaoCloud hosting for preliminary entry.
+- PlayMCP review heavily rewards stable, fast, privacy-safe tools.
+- Kakao Local/Maps can improve location workflows, but it introduces a REST API
+  key, quota behavior, failure paths, latency, and location privacy questions.
+- The current MCP can already satisfy the civic-report preparation goal without
+  external data. Adding a weak API integration now would be decorative rather
+  than product-critical.
+
+### Stage 1: optional Kakao Local enrichment after remote rebuild passes
+
+Add this only after the latest Git source is running remotely and passes
+`smoke:endpoint`, `smoke:actual-use:endpoint`, and
+`review:actual-output:endpoint`.
+
+Feature intent:
+
+- Convert user-provided coarse address/place text into district-level context.
+- Suggest likely public-office categories or nearby public places only when it
+  improves report preparation.
+- Make the output clearer for Kakao Tools/widget rendering later.
+
+Allowed Kakao APIs:
+
+- Kakao Local `search/address`: normalize a user-provided address string.
+- Kakao Local `geo/coord2regioncode`: convert explicitly provided coordinates
+  to administrative region only.
+- Kakao Local `search/keyword`: find public offices or public landmarks for
+  context, not private homes or personal contacts.
+- Kakao Utility `api-status`: optional monitoring if Kakao API dependency is
+  enabled.
+
+Implementation rules:
+
+- Gate with `KAKAO_LOCAL_ENABLED=false` by default.
+- Store `KAKAO_REST_API_KEY` only through a secure deployment mechanism such as
+  KakaoCloud Secrets Manager or the PlayMCP in KC portal if it provides a secure
+  env/secret field. Never commit it.
+- Keep a hard timeout, target 500-800 ms, and never let Local API failure block
+  the core MCP answer.
+- Do not persist raw query text, raw coordinates, or full address results.
+- Reduce output to coarse fields such as province/city/district/dong, issue
+  office category, and optional public-place hint.
+- Prefer administrative region over exact road address for final tool output.
+- Add tests for timeout, empty result, quota/error result, and privacy redaction.
+- Keep tool response p99 under the PlayMCP review target.
+
+Suggested output envelope:
+
+```json
+{
+  "kakao_enrichment": {
+    "enabled": true,
+    "status": "used | skipped | fallback | error",
+    "source": "kakao_local",
+    "coarse_region": {
+      "sido": "서울",
+      "sigungu": "강남구",
+      "eup_myeon_dong": "역삼동"
+    },
+    "privacy_level": "coarse_only",
+    "notes": ["exact address omitted"]
+  }
+}
+```
+
+### Stage 2: Kakao Tools finalist upgrade
+
+Prepare for the official note that finalist services are exposed through Kakao
+Tools and may use richer widget specs than PlayMCP.
+
+Expected work:
+
+- Keep the two current MCP tools stable.
+- Add widget-ready structured output fields without changing the plain-text
+  usefulness of responses.
+- Add a compact "next action" schema: report destination, evidence checklist,
+  safety warning, and draft summary.
+- If Kakao Tools exposes map/widget specs, map only coarse issue area or public
+  office candidates, not private home coordinates.
+- Re-run MCP standard compliance and PlayMCP tool metadata refresh after any
+  output shape change.
+
+### Stage 3: helper-matching / personal neighborhood help expansion
+
+This is not a pre-review feature. If added later, treat it as a separate
+consent-gated product lane, not as a civic-report shortcut.
+
+Kakao fit:
+
+- Kakao Login: only if persistent identity, consent history, or saved
+  preferences are required.
+- Kakao Local: only for coarse area normalization and nearby public meeting
+  place suggestions.
+- Kakao Talk Share: only for user-initiated share cards.
+- Kakao Talk Channel: only for support/announcement channels.
+
+Hard stops:
+
+- No reading KakaoTalk or community-app chats.
+- No brokering private home entry, pet/child/elder care, emergency medical/legal
+  decisions, or unsafe in-person meetings.
+- No exact address, unit number, door code, phone number, or payment detail in
+  MCP output.
+- No paid-work marketplace behavior until legal, tax, platform, and trust/safety
+  design are explicit.
+
+## 5C. Kakao API Fit Matrix For DongneSOS
+
+| Kakao surface | Current use | Future fit | Decision |
+|---|---|---|---|
+| PlayMCP in KC | Hosting live MCP server | Required preliminary infra | Use now |
+| PlayMCP console | Temporary registration, metadata, review state | Required review/publication path | Use now |
+| PlayMCP AI chat/toolbox | Real-use validation | User-facing testing and connector flow | Use now after endpoint refresh |
+| Kakao Tools | Not directly accessible yet | Finalist exposure, widget output, user vote | Design for now, implement after specs |
+| Kakao Local API | Not used | Coarse region normalization, public-office hints | Add after remote rebuild only if value is clear |
+| Kakao Maps Web/SDK | Not used | Widget/map visualization if finalist specs allow | Defer |
+| Kakao Utility API | Not used | Dependency/status monitoring | Optional if Local API is added |
+| KakaoCloud Secrets Manager | Not used | Store Kakao REST API key securely | Use if any Kakao API key is added |
+| KakaoCloud Object Storage | Not used | Non-sensitive public-office dataset/evidence archive | Optional later |
+| Kakao Login | Not used | Persistent profile or helper-matching consent | Defer |
+| Kakao Talk Share | Not used | User-initiated sharing only | Defer |
+| Kakao Talk Channel | Not used | Support/update channel only | Defer |
+| KakaoTalk data/message APIs | Not used | High risk for this product | Do not add for review candidate |
+
+## 5D. PlayMCP Toolbox / External Agent Connection Notes
+
+Use this section when validating real user flows outside the raw endpoint smoke
+tests.
+
+PlayMCP toolbox:
+
+- A toolbox can contain up to 10 MCP servers.
+- PlayMCP AI chat uses the toolbox by default; no separate setup is required in
+  PlayMCP AI chat.
+- The old "applied MCP" wording has changed to toolbox. Prefer "도구함에 추가"
+  over the old "AI 채팅에 적용" phrasing.
+- PlayMCP AI chat prioritizes MCP use.
+
+Claude connector:
+
+- Claude Pro/Max users connect from Claude settings > connectors, search or
+  choose PlayMCP, then complete Kakao account OAuth.
+- Claude Team/Enterprise requires owner/admin connector addition before members
+  connect individually.
+- Claude connector availability depends on Claude's paid-plan policy.
+
+ChatGPT connector:
+
+- ChatGPT users copy the PlayMCP toolbox URL from PlayMCP > toolbox.
+- In ChatGPT Settings > Apps & Connectors, create a connector with PlayMCP as
+  name and the copied toolbox URL as MCP server URL.
+- Authentication is OAuth; do not enter OAuth client id or secret.
+- Enterprise/Edu/Business owners may need to publish the connector to the
+  workspace and enable developer mode.
+- If toolbox contents change, refresh the PlayMCP connector in ChatGPT.
+- If ChatGPT marks a toolbox MCP as unsafe, reduce/adjust toolbox contents and
+  retry.
+
+External agent gateway:
+
+- Gateway endpoint: `https://playmcp.kakao.com/mcp`.
+- The gateway requires an OAuth Bearer token.
+- The official agent flow uses an OTT from PlayMCP toolbox's OpenClaw
+  connection flow, exchanges it at
+  `POST https://playmcp.kakao.com/api/v1/auths/otts:exchange`, then stores
+  credentials in `~/.mcporter/credentials.json`.
+- Do not paste OTT/access/refresh tokens into repo files or docs.
 
 ## 6. Official MCP Server Development Rules
 
