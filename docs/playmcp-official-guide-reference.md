@@ -78,6 +78,19 @@ Local evidence files for this state:
 - `deploy/playmcp/evidence/playmcp-in-kc-v4-start-retry-20260624.json`
 - `deploy/playmcp/evidence/playmcp-in-kc-v5-quick-retry-20260624.json`
 
+Specialist review after this retry:
+
+- DeepSearchTeam / StockAI Pro Chat completed on `goldpure369`, model label
+  `Pro`, conversation `https://chatgpt.com/c/6a3b74f0-19a0-83e8-aa99-afed956b8b3c`.
+- Verdict: `CONDITIONAL PASS`.
+- Local MCP product/output readiness: `PASS`.
+- Repo patch required now: `false`.
+- Remote / PlayMCP review readiness: `BLOCKED` until a fresh endpoint is
+  created and remote smoke, actual-use smoke, and actual-output review pass.
+- Pro Chat classified the v4 KServe webhook timeout and v5 auth/session
+  failures as deployment/account/platform blockers, not as current repo-code
+  blockers.
+
 ## 2. Official Source Inventory
 
 Primary official pages to re-check before review or submission:
