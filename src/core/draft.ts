@@ -48,16 +48,21 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     when === copyRules.fallback_when ? copyRules.fallback_when : null
   ].filter((value): value is string => Boolean(value));
 
-  const title = `[${item.label_ko}] ${where} ${shortProblem(item, neutralWhat.text)} 점검 요청`;
-  const body = fillTemplate(item, {
-    issue_label: item.label_ko,
-    where_general: where,
-    short_problem: shortProblem(item, neutralWhat.text),
-    what: neutralWhat.text,
-    when_observed: when,
-    impact: safeImpact,
-    request_phrase: item.request_phrase
-  });
+  const problem = shortProblem(item, neutralWhat.text);
+  const titleWhere = titleLocation(where);
+  const title = [`[${item.label_ko}]`, titleWhere, `${problem} 점검 요청`].filter(Boolean).join(" ");
+  const body = replaceFirstLine(
+    fillTemplate(item, {
+      issue_label: item.label_ko,
+      where_general: where,
+      short_problem: problem,
+      what: neutralWhat.text,
+      when_observed: when,
+      impact: safeImpact,
+      request_phrase: item.request_phrase
+    }),
+    title
+  );
 
   const suggested = suggestedChannel(item);
   const evidence = [
@@ -117,10 +122,16 @@ function fillTemplate(item: TaxonomyItem, values: Record<string, string>): strin
   return text.split("{{request_phrase}}").join(item.request_phrase);
 }
 
+function replaceFirstLine(text: string, firstLine: string): string {
+  const lines = text.split("\n");
+  lines[0] = firstLine;
+  return lines.join("\n");
+}
+
 function fillNeighborTemplate(item: TaxonomyItem, where: string): string {
   return copyRules.neighbor_share_template
     .split("{{where_general}}")
-    .join(where)
+    .join(shareLocation(where))
     .split("{{issue_label}}")
     .join(item.label_ko);
 }
@@ -131,6 +142,20 @@ function shortProblem(item: TaxonomyItem, what: string): string {
   if (what.includes("침수")) return "침수";
   if (what.includes("방치")) return "방치";
   return item.label_ko.replace(/·.*/, "");
+}
+
+function titleLocation(where: string): string {
+  if (/비공개|공개하지|정확한\s*주소|개인정보/.test(where) || where.startsWith("[") || where.length > 40) {
+    return "";
+  }
+  return where;
+}
+
+function shareLocation(where: string): string {
+  if (/비공개|공개하지|정확한\s*주소|개인정보/.test(where) || where.startsWith("[") || where.length > 40) {
+    return "해당 공용 구역";
+  }
+  return where;
 }
 
 function defaultImpact(item: TaxonomyItem): string {

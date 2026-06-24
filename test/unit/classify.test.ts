@@ -39,8 +39,22 @@ describe("classifyCivicIssue", () => {
     assert.equal(output.result_type, "out_of_scope");
     assert.ok(!output.safety.masked_description.includes("불법 확정"));
     assert.ok(!output.safety.masked_description.includes("처벌받게"));
+    assert.ok(!output.safety.masked_description.includes("확인 필요이니"));
+    assert.ok(!output.safety.masked_description.includes("신고문 써줘"));
     assert.ok(output.safety.forbidden_claims_removed.includes("forbidden_phrase"));
     assert.ok(output.safety.forbidden_claims_removed.includes("forbidden_pattern"));
     assert.ok(output.errors.some((error) => error.code === "E_FORBIDDEN_ASSERTION_REMOVED"));
+  });
+
+  it("routes personal neighbor-help requests to explicit out-of-scope roadmap messaging", () => {
+    const output = classifyCivicIssue({
+      description: "당근에서처럼 병원 동행 도와줄 사람을 동네에서 찾고 싶어요."
+    });
+    assert.equal(output.result_type, "out_of_scope");
+    assert.equal(output.issue.code, "OUT_OF_SCOPE");
+    assert.equal(output.draft_policy.can_draft, false);
+    assert.match(output.draft_policy.reason, /로드맵/);
+    assert.match(output.user_messages.summary, /범위/);
+    assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
   });
 });

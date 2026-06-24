@@ -22,7 +22,14 @@ export function createServer(): McpServer {
       description:
         "생활불편 설명을 공공시설·환경·보행안전 유형으로 분류하고, 공식 접수 전 필요한 증거와 복붙 초안 준비 방향을 알려주는 도구입니다. 실제 신고 접수, 로그인, 위치 수집, 사진 분석, 자동 발송은 하지 않습니다. 긴급하거나 즉시 위험한 상황은 초안 생성 대신 공식 긴급 채널 직접 연락을 안내합니다.",
       inputSchema: ClassifyInputSchema,
-      outputSchema: ClassificationOutputSchema
+      outputSchema: ClassificationOutputSchema,
+      annotations: {
+        title: "생활불편 유형 분류",
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true
+      }
     },
     async (args) => {
       const output = runClassifyCivicIssue(args);
@@ -40,7 +47,14 @@ export function createServer(): McpServer {
       description:
         "분류된 생활불편 유형과 사용자가 제공한 관찰 사실을 바탕으로 공식 채널에 직접 붙여 넣을 수 있는 신고 준비용 제목·본문·체크리스트를 생성합니다. 실제 접수, 자동 전송, 처리 결과 확인, 처벌 가능성 판단은 하지 않습니다.",
       inputSchema: DraftInputSchema,
-      outputSchema: DraftOutputSchema
+      outputSchema: DraftOutputSchema,
+      annotations: {
+        title: "생활불편 신고 준비 초안 생성",
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true
+      }
     },
     async (args) => {
       const output = runDraftCivicReport(args);

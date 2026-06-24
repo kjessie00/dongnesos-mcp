@@ -56,6 +56,14 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
         : [])
     ]);
   }
+  if (isPersonalNeighborHelpRequest(neutralized.text)) {
+    return makeNeighborHelpOutOfScopeOutput(neutralized.text, masked.detected, neutralized.removed, [
+      ...(masked.detected ? [{ code: "E_PII_MASKED", severity: "warning" as const, message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." }] : []),
+      ...(neutralized.removed.length
+        ? [{ code: "E_FORBIDDEN_ASSERTION_REMOVED", severity: "warning" as const, message: "처벌·비방·책임 단정으로 보일 수 있는 표현을 중립화했습니다." }]
+        : [])
+    ]);
+  }
 
   if (masked.detected) {
     errors.push({ code: "E_PII_MASKED", severity: "warning", message: "개인정보 또는 식별정보로 보이는 값을 마스킹했습니다." });
@@ -131,7 +139,7 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
       reason: "비긴급 생활불편으로 초안 생성 가능"
     },
     user_messages: {
-      summary: `${best.item.label_ko}으로 보입니다. ${best.item.evidence_required.join(", ")}을 준비하면 좋습니다.`,
+      summary: `${best.item.label_ko}으로 보입니다. 준비할 정보: ${best.item.evidence_required.join(", ")}.`,
       next_action: "draft_civic_report를 호출해 복붙용 초안을 만들 수 있습니다.",
       clarifying_question: null
     },
@@ -179,6 +187,18 @@ function categoryMatches(item: TaxonomyItem, hint: string): boolean {
   if (hint === "safety_accessibility") return group.includes("안전") || group.includes("접근성");
   if (hint === "parking_mobility") return group.includes("주차") || group.includes("이동");
   return false;
+}
+
+function isPersonalNeighborHelpRequest(text: string): boolean {
+  const normalized = normalizeText(text);
+  const personalHelpIntent =
+    /(도와줄\s*사람|도와주실\s*분|도움\s*줄\s*분|사람을?\s*찾|분을?\s*찾|구하고\s*싶|찾고\s*싶|동네에서\s*찾|이웃\s*도움)/.test(normalized);
+  if (!personalHelpIntent && !normalized.includes("당근")) {
+    return false;
+  }
+  return /(병원\s*동행|동행|택배|짐|물건|강아지|고양이|반려동물|펫|밥만|산책|심부름|돌봄|집\s*방문|집에\s*들어|문\s*열|열쇠|비밀번호)/.test(
+    normalized
+  );
 }
 
 function routingFor(channelFamily: ChannelFamily): ClassificationOutput["routing"] {
@@ -296,6 +316,53 @@ function makeOutOfScopeOutput(text: string, piiDetected: boolean, removed: strin
   output.issue = { code: "OUT_OF_SCOPE", label_ko: "범위 밖", group: "범위 밖" };
   output.draft_policy = { can_draft: false, reason: "사인 간 분쟁, 법률 문서, 처벌 요구는 동네SOS 범위가 아닙니다." };
   output.user_messages.summary = "동네SOS는 생활 공공시설·환경 불편의 신고 준비만 돕습니다.";
+  output.user_messages.next_action = "생활 공공시설·환경 불편이면 현장 상태 중심으로 다시 적어주세요.";
+  output.user_messages.clarifying_question = null;
+  output.presentation_mock = {
+    version: "0.1",
+    card_type: "needs_clarification",
+    headline: "현재 범위 밖 요청입니다",
+    badges: ["범위 밖", "초안 생성 불가"],
+    sections: [{ title: "지원 범위", text: output.draft_policy.reason }],
+    actions: [],
+    footer_notice: "동네SOS 현재 버전은 생활 공공시설·환경 불편 신고 준비만 지원합니다."
+  };
+  return output;
+}
+
+function makeNeighborHelpOutOfScopeOutput(text: string, piiDetected: boolean, removed: string[], errors: SosError[]): ClassificationOutput {
+  const output = makeOutOfScopeOutput(text, piiDetected, removed, [
+    ...errors,
+    { code: "E_NEIGHBOR_HELP_UNSUPPORTED", severity: "info", message: "이웃 도움 교류 기능은 현재 버전의 실행 범위가 아니라 별도 로드맵입니다." }
+  ]);
+  output.issue = { code: "OUT_OF_SCOPE", label_ko: "이웃 도움 교류 요청", group: "범위 밖" };
+  output.draft_policy = {
+    can_draft: false,
+    reason: "이웃 도움 교류는 현재 버전에서 설계 로드맵으로만 다루며, 지금은 공공시설·환경 신고 준비 초안을 만들지 않습니다."
+  };
+  output.user_messages = {
+    summary: "이 요청은 현재 동네SOS의 생활 공공시설·환경 신고 준비 범위가 아닙니다.",
+    next_action: "공공시설·환경 불편이면 현장 상태를 적어주시고, 개인 도움 교류는 향후 별도 안전 설계가 필요합니다.",
+    clarifying_question: null
+  };
+  output.presentation_mock = {
+    version: "0.1",
+    card_type: "needs_clarification",
+    headline: "이웃 도움 교류는 현재 로드맵 기능입니다",
+    badges: ["범위 밖", "안전 설계 필요"],
+    sections: [
+      {
+        title: "현재 지원하지 않음",
+        text: "병원 동행, 반려동물 돌봄, 집 방문, 물건 이동처럼 개인 간 도움을 찾는 요청은 현재 civic 신고 준비 도구의 범위가 아닙니다."
+      },
+      {
+        title: "현재 버전에서 가능한 것",
+        text: "보도블록 파손, 가로등 고장, 쓰레기 방치처럼 공공시설·환경 생활불편의 신고 준비만 돕습니다."
+      }
+    ],
+    actions: [],
+    footer_notice: "개인 도움 교류 기능은 별도 안전·개인정보 설계 후에만 추가할 수 있습니다."
+  };
   return output;
 }
 

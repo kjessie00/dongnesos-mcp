@@ -83,4 +83,38 @@ describe("draftCivicReport", () => {
     assert.ok(!output.draft?.copy_block.includes("[차량정보 비공개]호"));
     assert.deepEqual(output.safety.masked_fields, ["unit_address"]);
   });
+
+  it("keeps privacy placeholders out of draft titles", () => {
+    const output = draftCivicReport({
+      issue_code: "ILLEGAL_DUMPING",
+      facts: {
+        what: "쓰레기가 우리집 101동 1203호 앞에 반복적으로 쌓입니다.",
+        where_general: "101동 1203호 앞"
+      }
+    });
+    assert.equal(output.result_type, "draft");
+    assert.ok(output.draft);
+    assert.ok(!output.draft.title.includes("비공개"));
+    assert.ok(!output.draft.title.includes("101동"));
+    assert.ok(output.draft.copy_block.includes("[동호수 비공개]"));
+    assert.ok(!output.share.neighbor_text.includes("[동호수 비공개]"));
+    assert.ok(output.share.neighbor_text.includes("해당 공용 구역"));
+  });
+
+  it("keeps privacy meta wording out of draft titles", () => {
+    const output = draftCivicReport({
+      issue_code: "ROAD_SIDEWALK_DAMAGE",
+      facts: {
+        what: "집 앞 보도블록 일부가 깨져 유모차 바퀴가 걸립니다.",
+        where_general: "집 앞 보도, 정확한 주소는 공개하지 않음"
+      }
+    });
+    assert.equal(output.result_type, "draft");
+    assert.ok(output.draft);
+    assert.ok(!output.draft.title.includes("정확한 주소"));
+    assert.ok(!output.draft.title.includes("공개하지"));
+    assert.ok(!output.share.neighbor_text.includes("정확한 주소"));
+    assert.ok(!output.share.neighbor_text.includes("공개하지"));
+    assert.match(output.draft.copy_block, /^\[보도블록 파손\] 보도블록 파손 점검 요청/);
+  });
 });

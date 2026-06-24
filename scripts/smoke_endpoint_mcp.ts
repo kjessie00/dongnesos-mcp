@@ -16,6 +16,8 @@ interface SmokeEvidence {
     name: string;
     has_input_schema: boolean;
     has_output_schema: boolean;
+    has_annotations: boolean;
+    annotations_ok: boolean;
   }>;
   classify?: {
     result_type?: string;
@@ -72,11 +74,21 @@ try {
   evidence.tools = tools.tools.map((tool) => ({
     name: tool.name,
     has_input_schema: Boolean(tool.inputSchema),
-    has_output_schema: Boolean(tool.outputSchema)
+    has_output_schema: Boolean(tool.outputSchema),
+    has_annotations: Boolean(tool.annotations),
+    annotations_ok:
+      tool.annotations?.readOnlyHint === true &&
+      tool.annotations?.destructiveHint === false &&
+      tool.annotations?.openWorldHint === false &&
+      tool.annotations?.idempotentHint === true &&
+      typeof tool.annotations?.title === "string" &&
+      tool.annotations.title.length > 0
   }));
   for (const tool of evidence.tools) {
     assert.equal(tool.has_input_schema, true, `${tool.name} inputSchema missing`);
     assert.equal(tool.has_output_schema, true, `${tool.name} outputSchema missing`);
+    assert.equal(tool.has_annotations, true, `${tool.name} annotations missing`);
+    assert.equal(tool.annotations_ok, true, `${tool.name} annotations incomplete`);
   }
 
   const classification = await client.callTool({

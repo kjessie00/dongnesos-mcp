@@ -173,9 +173,15 @@ try {
   cases.push(
     buildCase("purpose-neighbor-help-not-implemented", "personal help request is not forced into a civic draft", classifyNeighborHelp, [
       { name: "no_civic_draft", pass: stringValue(classifyNeighborHelp.result_type) !== "draft" },
-      { name: "needs_clarification", pass: stringValue(classifyNeighborHelp.result_type) === "needs_clarification" },
-      { name: "unclear_code", pass: stringValue(asRecord(classifyNeighborHelp.issue).code) === "UNCLEAR" },
-      { name: "not_draftable", pass: booleanValue(asRecord(classifyNeighborHelp.draft_policy).can_draft) === false }
+      { name: "out_of_scope", pass: stringValue(classifyNeighborHelp.result_type) === "out_of_scope" },
+      { name: "out_of_scope_code", pass: stringValue(asRecord(classifyNeighborHelp.issue).code) === "OUT_OF_SCOPE" },
+      { name: "not_draftable", pass: booleanValue(asRecord(classifyNeighborHelp.draft_policy).can_draft) === false },
+      {
+        name: "roadmap_message",
+        pass:
+          (stringValue(asRecord(classifyNeighborHelp.user_messages).summary) ?? "").includes("범위") &&
+          (stringValue(asRecord(classifyNeighborHelp.draft_policy).reason) ?? "").includes("로드맵")
+      }
     ])
   );
 } finally {

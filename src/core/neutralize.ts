@@ -21,7 +21,7 @@ export function neutralizeForbiddenClaims(input: string): NeutralizeResult {
   for (const phrase of safetyRules.forbidden_phrases) {
     if (text.includes(phrase)) {
       removed.push("forbidden_phrase");
-      text = text.split(phrase).join("확인 필요");
+      text = text.split(phrase).join(replacementForForbiddenPhrase(phrase));
     }
   }
   for (const [regex, replacement] of replacements) {
@@ -31,5 +31,30 @@ export function neutralizeForbiddenClaims(input: string): NeutralizeResult {
       removed.push("forbidden_pattern");
     }
   }
-  return { text, removed: Array.from(new Set(removed)) };
+  return { text: polishNeutralizedText(text), removed: Array.from(new Set(removed)) };
+}
+
+function replacementForForbiddenPhrase(phrase: string): string {
+  if (phrase.includes("불법 확정")) {
+    return "사실관계 확인이 필요한 사안";
+  }
+  if (phrase.includes("처벌")) {
+    return "현장 확인 후 필요한 조치 검토";
+  }
+  if (phrase.includes("과태료")) {
+    return "필요한 조치 검토";
+  }
+  return "중립적 표현";
+}
+
+function polishNeutralizedText(text: string): string {
+  return text
+    .replace(/사실관계 확인이 필요한 사안(이니|이라서|이라|이라고|으로)?/g, "사실관계 확인이 필요한 사안으로")
+    .replace(/\S+이 사실관계 확인이 필요한 사안으로/g, "해당 사안은 사실관계 확인이 필요하며")
+    .replace(/현장 확인 후 필요한 조치 검토(받게|해\s?줘|해주세요|해)?/g, "현장 확인 후 필요한 조치 검토")
+    .replace(/현장 확인 후 필요한 조치 검토\s*(신고문|문구|초안)?\s*(써줘|작성해줘|만들어줘)?/g, "현장 확인 후 필요한 조치 검토")
+    .replace(/필요한 조치 검토(를)?\s*(부과|먹이|나오게)?/g, "필요한 조치 검토")
+    .replace(/검토(?=신고문|문구|초안)/g, "검토 ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
