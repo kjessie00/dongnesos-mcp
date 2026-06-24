@@ -1,4 +1,4 @@
-import { channelsData, copyRules, getTaxonomyItem, safetyRules } from "../data/loadData.js";
+import { channelsData, copyRules, getTaxonomyItem, safetyRules, taxonomyData } from "../data/loadData.js";
 import type { DraftInput, DraftOutput, SosError, TaxonomyItem } from "../types.js";
 import { detectEmergency, isEmergencyCode } from "./emergency.js";
 import { maskPii } from "./pii.js";
@@ -19,7 +19,15 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     return blockedEmergency(emergency?.message ?? "긴급 또는 즉시 위험 가능성이 있어 초안 생성을 차단했습니다.");
   }
 
-  const item = getTaxonomyItem(input.issue_code);
+  if (isPersonalNeighborHelpRequest([input.issue_code, what, input.facts?.where_general, input.facts?.impact, input.facts?.photo_note].join(" "))) {
+    return failure(
+      "out_of_scope",
+      "E_NEIGHBOR_HELP_UNSUPPORTED",
+      "개인 간 도움 모집은 현재 동네SOS의 시민 생활불편 신고 준비 범위가 아닙니다. 향후 이웃 도움 연결 기능의 별도 로드맵으로 분리해 다루는 것이 안전합니다."
+    );
+  }
+
+  const item = resolveDraftTaxonomyItem(input.issue_code, input);
   if (!item) {
     return failure("error", "E_UNKNOWN_ISSUE_CODE", "알 수 없는 생활불편 유형입니다. classify_civic_issue를 먼저 호출해 주세요.");
   }
@@ -174,6 +182,70 @@ function suggestedChannel(item: TaxonomyItem): string {
     return `${channel.label} — 세부 접수처 확인 필요`;
   }
   return `${channel.label} 또는 해당 지자체 생활민원 창구 — 세부 접수처 확인 필요`;
+}
+
+function resolveDraftTaxonomyItem(issueCode: string, input: DraftInput): TaxonomyItem | undefined {
+  const exact = getTaxonomyItem(issueCode);
+  if (exact) return exact;
+
+  const snapshotIssue = input.classification_snapshot?.issue;
+  const snapshotCode =
+    snapshotIssue && typeof snapshotIssue === "object" && "code" in snapshotIssue && typeof snapshotIssue.code === "string"
+      ? snapshotIssue.code
+      : undefined;
+  if (snapshotCode) {
+    const snapshotItem = getTaxonomyItem(snapshotCode);
+    if (snapshotItem) return snapshotItem;
+  }
+
+  const hint = normalizeText(issueCode);
+  const text = normalizeText(
+    [input.facts.what, input.facts.where_general, input.facts.impact, input.facts.photo_note, snapshotLabel(input)].filter(Boolean).join(" ")
+  );
+  const candidates = taxonomyData.items
+    .filter((item) => hint === "unknown" || categoryMatches(item, hint))
+    .map((item) => {
+      const score = item.keywords.reduce((sum, keyword) => {
+        return text.includes(normalizeText(keyword)) ? sum + (keyword.length >= 4 ? 3 : 2) : sum;
+      }, 0);
+      return { item, score };
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score || a.item.code.localeCompare(b.item.code));
+
+  return candidates[0]?.item;
+}
+
+function snapshotLabel(input: DraftInput): string {
+  const snapshotIssue = input.classification_snapshot?.issue;
+  if (!snapshotIssue || typeof snapshotIssue !== "object") return "";
+  const label = "label_ko" in snapshotIssue ? snapshotIssue.label_ko : undefined;
+  return typeof label === "string" ? label : "";
+}
+
+function categoryMatches(item: TaxonomyItem, hint: string): boolean {
+  const group = item.group;
+  if (hint === "road_walkway") return group.includes("도로") || group.includes("보행");
+  if (hint === "public_facility") return group.includes("시설");
+  if (hint === "environment_sanitation") return group.includes("환경");
+  if (hint === "advertising_obstruction") return group.includes("광고") || group.includes("적치");
+  if (hint === "safety_accessibility") return group.includes("안전") || group.includes("접근성");
+  if (hint === "parking_mobility") return group.includes("주차") || group.includes("이동");
+  return false;
+}
+
+function isPersonalNeighborHelpRequest(text: string): boolean {
+  const normalized = normalizeText(text);
+  const personalHelpIntent =
+    /(도와줄\s*사람|도와주실\s*분|도움\s*줄\s*분|사람을?\s*찾|분을?\s*찾|구하고\s*싶|찾고\s*싶|동네에서\s*찾|이웃\s*도움|모집글)/.test(
+      normalized
+    );
+  if (!personalHelpIntent && !normalized.includes("당근")) {
+    return false;
+  }
+  return /(병원\s*동행|동행|택배|짐|물건|냉장고|이사|옮기|강아지|고양이|반려동물|펫|밥만|산책|심부름|돌봄|집\s*방문|집에\s*들어|문\s*열|열쇠|비밀번호)/.test(
+    normalized
+  );
 }
 
 function detectDraftEmergency(issueCode: string, what: string, impact: string): ReturnType<typeof detectEmergency> {

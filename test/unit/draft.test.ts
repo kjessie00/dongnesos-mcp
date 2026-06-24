@@ -117,4 +117,56 @@ describe("draftCivicReport", () => {
     assert.ok(!output.share.neighbor_text.includes("공개하지"));
     assert.match(output.draft.copy_block, /^\[보도블록 파손\] 보도블록 파손 점검 요청/);
   });
+
+  it("accepts PlayMCP category hints for draft issue_code", () => {
+    const output = draftCivicReport({
+      issue_code: "road_walkway",
+      facts: {
+        what: "집 앞 보도블록이 깨져서 유모차가 걸려요."
+      },
+      tone: "formal",
+      language: "ko"
+    });
+    assert.equal(output.result_type, "draft");
+    assert.match(output.draft?.title ?? "", /보도블록 파손/);
+    assert.match(output.draft?.copy_block ?? "", /유모차/);
+  });
+
+  it("masks PlayMCP-provided privacy details when resolving category hints", () => {
+    const output = draftCivicReport({
+      issue_code: "environment_sanitation",
+      facts: {
+        what: "우리 빌라 302호 앞에 음식물 쓰레기가 계속 버려지고 있습니다. 사진에는 차량번호 12가3456도 찍혔습니다.",
+        where_general: "우리 빌라 302호 앞",
+        photo_note: "차량번호 12가3456이 찍힌 사진이 있습니다."
+      },
+      tone: "formal",
+      include_neighbor_share_text: false,
+      language: "ko"
+    });
+    assert.equal(output.result_type, "draft");
+    assert.ok(output.draft);
+    assert.match(output.draft.title, /쓰레기|음식물/);
+    assert.ok(!output.draft.copy_block.includes("12가3456"));
+    assert.ok(!output.draft.copy_block.includes("302호"));
+    assert.equal(output.share.neighbor_text, "");
+  });
+
+  it("routes PlayMCP direct personal-help draft calls out of scope", () => {
+    const output = draftCivicReport({
+      issue_code: "unknown",
+      facts: {
+        what: "오늘 밤 9시에 냉장고 옮기는 것을 도와줄 사람을 찾습니다.",
+        when_observed: "오늘 밤 9시",
+        impact: "냉장고를 안전하게 옮기기 위해 도움이 필요합니다."
+      },
+      tone: "neutral",
+      include_neighbor_share_text: true,
+      language: "ko"
+    });
+    assert.equal(output.result_type, "out_of_scope");
+    assert.equal(output.draft, null);
+    assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
+    assert.match(output.errors[0]?.message ?? "", /로드맵/);
+  });
 });

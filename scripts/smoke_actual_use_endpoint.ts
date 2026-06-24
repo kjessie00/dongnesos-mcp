@@ -114,6 +114,44 @@ try {
     ])
   );
 
+  const draftPlayMcpRoad = await callTool(client, "draft_civic_report", {
+    issue_code: "road_walkway",
+    facts: {
+      what: "집 앞 보도블록이 깨져서 유모차가 걸려요."
+    },
+    tone: "formal",
+    language: "ko"
+  });
+  const playMcpRoadCopy = stringValue(asRecord(draftPlayMcpRoad.draft).copy_block) ?? "";
+  cases.push(
+    buildCase("playmcp-road-walkway-hint", "PlayMCP category hint resolves to a copy-ready road draft", draftPlayMcpRoad, [
+      { name: "draft_not_unknown", pass: stringValue(draftPlayMcpRoad.result_type) === "draft" },
+      { name: "copy_ready", pass: playMcpRoadCopy.includes("보도블록") && playMcpRoadCopy.includes("유모차") },
+      { name: "not_unknown_issue", pass: !hasErrorCode(draftPlayMcpRoad.errors, "E_UNKNOWN_ISSUE_CODE") }
+    ])
+  );
+
+  const draftPlayMcpSanitation = await callTool(client, "draft_civic_report", {
+    issue_code: "environment_sanitation",
+    facts: {
+      what: "우리 빌라 302호 앞에 음식물 쓰레기가 계속 버려지고 있습니다. 사진에는 차량번호 12가3456도 찍혔습니다.",
+      where_general: "우리 빌라 302호 앞",
+      photo_note: "차량번호 12가3456이 찍힌 사진이 있습니다."
+    },
+    tone: "formal",
+    include_neighbor_share_text: false,
+    language: "ko"
+  });
+  const sanitationCopy = stringValue(asRecord(draftPlayMcpSanitation.draft).copy_block) ?? "";
+  cases.push(
+    buildCase("playmcp-environment-hint-privacy", "PlayMCP sanitation hint resolves and masks copied privacy details", draftPlayMcpSanitation, [
+      { name: "draft_not_unknown", pass: stringValue(draftPlayMcpSanitation.result_type) === "draft" },
+      { name: "vehicle_masked", pass: !sanitationCopy.includes("12가3456") },
+      { name: "unit_masked", pass: !sanitationCopy.includes("302호") },
+      { name: "not_unknown_issue", pass: !hasErrorCode(draftPlayMcpSanitation.errors, "E_UNKNOWN_ISSUE_CODE") }
+    ])
+  );
+
   const draftStreetlight = await callTool(client, "draft_civic_report", {
     issue_code: "STREETLIGHT_OUT",
     facts: {
@@ -182,6 +220,25 @@ try {
           (stringValue(asRecord(classifyNeighborHelp.user_messages).summary) ?? "").includes("범위") &&
           (stringValue(asRecord(classifyNeighborHelp.draft_policy).reason) ?? "").includes("로드맵")
       }
+    ])
+  );
+
+  const draftNeighborHelp = await callTool(client, "draft_civic_report", {
+    issue_code: "unknown",
+    facts: {
+      what: "오늘 밤 9시에 냉장고 옮기는 것을 도와줄 사람을 찾습니다.",
+      when_observed: "오늘 밤 9시",
+      impact: "냉장고를 안전하게 옮기기 위해 도움이 필요합니다."
+    },
+    tone: "neutral",
+    include_neighbor_share_text: true,
+    language: "ko"
+  });
+  cases.push(
+    buildCase("playmcp-neighbor-help-draft-out-of-scope", "direct PlayMCP personal-help draft call returns out-of-scope instead of unknown issue", draftNeighborHelp, [
+      { name: "out_of_scope", pass: stringValue(draftNeighborHelp.result_type) === "out_of_scope" },
+      { name: "no_draft", pass: asRecord(draftNeighborHelp.draft).title === undefined },
+      { name: "roadmap_message", pass: hasErrorCode(draftNeighborHelp.errors, "E_NEIGHBOR_HELP_UNSUPPORTED") }
     ])
   );
 } finally {

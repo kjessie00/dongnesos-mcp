@@ -28,6 +28,11 @@ const patterns: Array<{ name: string; regex: RegExp; replacement: string }> = [
     replacement: "[동호수 비공개]"
   },
   {
+    name: "unit_address",
+    regex: /(?<![A-Za-z0-9가-힣])\d{1,4}\s?호(?![A-Za-z0-9가-힣])/g,
+    replacement: "[동호수 비공개]"
+  },
+  {
     name: "vehicle_plate",
     regex: /\b\d{2,3}\s?[가-힣]\s?\d{4}\b/g,
     replacement: "[차량정보 비공개]"
