@@ -1,6 +1,6 @@
 # PlayMCP / Kakao Cloud Official Guide Reference
 
-Last refreshed: 2026-06-24 14:49 KST
+Last refreshed: 2026-06-24 15:10 KST
 
 This is the working source-of-truth document for DongneSOS PlayMCP deployment,
 registration, review, and Kakao/KakaoCloud optimization. Keep it updated before
@@ -48,6 +48,35 @@ Important current caveat:
   `AssertionError [ERR_ASSERTION]: classify_civic_issue annotations missing`.
 - That means the current KakaoCloud endpoint must be rebuilt from the patched
   Git source and then refreshed in the PlayMCP developer console before review.
+
+Deployment retry notes on 2026-06-24:
+
+- Stale `dongnesos-mcp-v2` / detail id `375` was deleted to free one of the two
+  allowed contest server slots.
+- New Git source build `dongnesos-mcp-v4` / detail id `567` was accepted as
+  `mcp-build-apply-567`.
+- The v4 build passed repository tests and image push, but failed while creating
+  the KakaoCloud KServe `InferenceService`:
+  `failed calling webhook "inferenceservice.kserve-webhook-server.defaulter" ...
+  context deadline exceeded`.
+- `PATCH /api/v2/mcp/my-mcp-servers/567/start` returned
+  `시작할 수 없는 상태입니다.`, so failed v4 must be deleted before another
+  fresh build.
+- A follow-up v5 create attempt was blocked because the PlayMCP in KC browser
+  session returned `401 인증되지 않았습니다` and then
+  `503 Authentication service unavailable`.
+- Until PlayMCP in KC authentication recovers, the live review candidate remains
+  v3, and remote e2e cannot prove the latest Git commit.
+
+Local evidence files for this state:
+
+- `deploy/playmcp/evidence/local-endpoint-smoke-f375d40-20260624.json`
+- `deploy/playmcp/evidence/local-actual-use-f375d40-20260624.json`
+- `deploy/playmcp/evidence/local-actual-output-review-f375d40-20260624.md`
+- `deploy/playmcp/evidence/playmcp-in-kc-v4-create-20260624.json`
+- `deploy/playmcp/evidence/playmcp-in-kc-v4-poll-20260624.json`
+- `deploy/playmcp/evidence/playmcp-in-kc-v4-start-retry-20260624.json`
+- `deploy/playmcp/evidence/playmcp-in-kc-v5-quick-retry-20260624.json`
 
 ## 2. Official Source Inventory
 
