@@ -1,6 +1,6 @@
 # PlayMCP / Kakao Cloud Official Guide Reference
 
-Last refreshed: 2026-06-24 14:37 KST
+Last refreshed: 2026-06-24 14:49 KST
 
 This is the working source-of-truth document for DongneSOS PlayMCP deployment,
 registration, review, and Kakao/KakaoCloud optimization. Keep it updated before
@@ -72,6 +72,20 @@ Primary official pages to re-check before review or submission:
   `https://www.notion.so/2189b97b4888803dbbdcef264e7eff58`
 - Official Notion review policy:
   `https://www.notion.so/21b9b97b48888024922ec3dfcacf97e5`
+- Kakao Developers, Kakao Login REST API:
+  `https://developers.kakao.com/docs/en/kakaologin/rest-api`
+- Kakao Developers, Local API concepts:
+  `https://developers.kakao.com/docs/latest/en/local/common`
+- Kakao Maps API:
+  `https://apis.map.kakao.com/`
+- Kakao Maps Web API guide:
+  `https://apis.map.kakao.com/web/guide/`
+- Kakao Developers, Kakao Talk Channel REST API:
+  `https://developers.kakao.com/docs/latest/en/kakaotalk-channel/rest-api`
+- Kakao Developers, Kakao Talk Share:
+  `https://developers.kakao.com/docs/latest/en/kakaotalk-share/common`
+- Kakao Developers, Utility API status:
+  `https://developers.kakao.com/docs/latest/en/reference/utility`
 
 ## 3. PlayMCP in KC / KakaoCloud Hosting Rules
 
@@ -175,7 +189,19 @@ layer:
 - PlayMCP client/LLM surfaces call the two MCP tools.
 
 The current server does not call Kakao service APIs internally. That is an
-intentional safety choice, not a missing deploy feature.
+intentional safety choice, not a missing deploy feature. For the preliminary
+round, official KakaoCloud hosting, PlayMCP registration, strict MCP metadata,
+stable output quality, and privacy-safe civic triage are higher-value than
+adding a Kakao API without a clear user-facing benefit.
+
+Decision rule for Kakao/KakaoCloud optimization:
+
+1. Use official KakaoCloud / PlayMCP surfaces immediately when they are part of
+   the required contest path.
+2. Use Kakao APIs only when they improve a real DongneSOS workflow and can be
+   operated with explicit user consent, minimal data, and predictable latency.
+3. Do not add APIs that merely decorate the submission, increase privacy risk,
+   slow tool calls, or duplicate what PlayMCP/LLM already provides.
 
 Recommended Kakao/KakaoCloud roadmap:
 
@@ -190,13 +216,30 @@ Recommended Kakao/KakaoCloud roadmap:
 | Kakao account auth | Only if needed | Current tool is read-only and stateless; no login needed |
 | External browser scraping | Avoid | Review policy penalizes unnecessary redirects/crawling and privacy risk |
 
+Potential Kakao API additions, ranked by fit:
+
+| Candidate | Fit | When to add | Required guardrails |
+|---|---:|---|---|
+| Kakao Maps / Local API | High later | When we add optional address normalization, nearby public-office hints, or map-ready civic issue context | No precise home address storage; coarse location output by default; API timeout/fallback; never block core draft |
+| Kakao Maps Web API / marker-ready output | High for finalist widget | When Kakao Tools widget specs are available and map display improves the answer | Widget-only enrichment; avoid sending raw coordinates unless user supplies them intentionally |
+| Kakao API status Utility API | Medium | For deployment monitoring if Kakao API dependencies are added | Health evidence only; no user data |
+| Kakao Login | Low now / medium later | Only if persistent personal history, favorites, or consent-gated helper matching becomes necessary | OAuth consent, data minimization, deletion path, no login for basic usage |
+| Kakao Talk Channel API | Low now | Only for an official support/update channel, not for core MCP behavior | No unsolicited messaging; channel relationship and consent checks |
+| Kakao Talk Share | Low now / medium for finalist UX | If final Kakao Tools/user-share flow benefits from share cards | SDK-only surface; no private chat reading; no auto-send |
+| Kakao Navi | Low | Only if a future helper/visit flow needs directions | User-initiated link-out only; avoid revealing private addresses |
+
 Practical next step:
 
 - Do not add a Kakao API just to appear "Kakao-integrated".
 - First make the current MCP outputs review-grade, rebuild on KakaoCloud, and
   refresh PlayMCP metadata.
 - In parallel, design a finalist/Kakao Tools upgrade plan with widget-ready
-  outputs and optional Kakao Maps integration behind explicit privacy rules.
+  outputs and optional Kakao Maps/Local integration behind explicit privacy
+  rules.
+- If we add the "neighbor personal help" feature later, design it as a
+  consent-gated coordination layer first. Kakao APIs should support identity,
+  map context, or share surfaces only after the safety model is clear; the MCP
+  must not infer, expose, or broker private household access by default.
 
 ## 6. Official MCP Server Development Rules
 
