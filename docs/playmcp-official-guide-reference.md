@@ -6,6 +6,9 @@ This is the working source-of-truth document for DongneSOS PlayMCP deployment,
 registration, review, and Kakao/KakaoCloud optimization. Keep it updated before
 changing deployment, review state, Kakao API usage, or contest submission.
 
+Latest redeploy blocker investigation:
+`docs/playmcp-kc-redeploy-blocker-investigation-20260624.md`.
+
 ## 0. Korean Quick Brief
 
 현재 DongneSOS 서버는 로컬이나 GitHub에 떠 있는 것이 아니라
