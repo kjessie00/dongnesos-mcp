@@ -8,6 +8,12 @@ evidence to prepare, and drafts a neutral copy/paste report. It never submits a
 report, logs in, reads KakaoTalk, collects precise location, uploads photos, or
 calls external government APIs.
 
+DongneSOS is not meant to replace search by summarizing web pages. Its service
+value is that it turns a messy local problem into an action package: official
+type, likely channel family, evidence checklist, privacy-safe official/public
+text split, neutral wording, and next action. Search gives pages; DongneSOS
+gives the next safe action.
+
 ## MCP Tools
 
 - `classify_civic_issue`: classifies the issue into the fixed 28-item taxonomy,
@@ -112,6 +118,9 @@ For the review narrative and sample cases, see `DEMO_SCRIPT.md`.
 
 For actual-use verification steps and the future `이웃 도움 교류` expansion
 design, see `docs/actual-use-and-neighbor-help-design.md`.
+
+For the product differentiation against ordinary search, see
+`docs/search-vs-dongnesos-service-value-20260625.md`.
 
 For owner approval and external deployment stop rules, see
 `deploy/playmcp/owner-approval-packet.md`.
