@@ -120,6 +120,8 @@ Instead, use three evidence layers:
    - Stored with `source_url`, `last_verified`, `official_domain`,
      `evidence_requirements`, `privacy_notes`, and `routing_limitations`.
    - Fast enough for normal MCP calls.
+   - Initial seed corpus:
+     `data/source_cards.json`.
 
 2. **Rule-backed matching**
    - User input maps to an official domain and internal privacy profile.
@@ -168,6 +170,19 @@ The user should see only the useful output:
 ```
 
 The source card remains available as evidence for reviewers and debugging.
+
+The first local corpus contains official and local-government cards for:
+
+- 행정안전부 Safety e-Report official domains
+- Safety e-Report app evidence flow
+- illegal-parking evidence requirements
+- Seoul traffic-law citizen reports
+- Haeundae and Changwon local illegal-parking guide examples
+- 국민신문고 general petition and ACRC grievance-petition fallback
+- PIPC vehicle-registration-number privacy interpretation
+- 개인정보 보호법 Article 15
+- 민원 처리에 관한 법률 Article 7
+- 국민신문고/권익위 privacy notices
 
 ### Response-Time Target
 

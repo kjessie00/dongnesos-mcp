@@ -1,0 +1,461 @@
+{
+  "schema_version": "dongnesos.source_cards.v0.1",
+  "last_compiled": "2026-06-25",
+  "cards": [
+    {
+      "source_id": "mois_safetyreport_domains",
+      "source_name": "행정안전부 안전신문고 신고 대상",
+      "source_type": "official_overview",
+      "publisher": "행정안전부",
+      "source_url": "https://www.mois.go.kr/frt/sub/a06/b10/safetyReport/screen.do",
+      "last_verified": "2026-06-25",
+      "official_domain": "안전신문고",
+      "applies_to_taxonomy_codes": [
+        "ROAD_SIDEWALK_DAMAGE",
+        "ROAD_POTHOLE",
+        "ROAD_SUBSIDENCE_CRACK",
+        "TACTILE_PAVING_DAMAGE",
+        "CROSSWALK_FADED",
+        "ROAD_SIGN_DAMAGE",
+        "MANHOLE_DEFECT",
+        "STREETLIGHT_OUT",
+        "TRAFFIC_LIGHT_FAULT",
+        "BUS_STOP_FACILITY",
+        "PARK_FACILITY_DAMAGE",
+        "PUBLIC_TOILET_ISSUE",
+        "ILLEGAL_DUMPING",
+        "FOOD_WASTE_SPILL",
+        "ODOR_NUISANCE",
+        "SEWER_BACKFLOW",
+        "WATER_LEAK_PUBLIC",
+        "DRAIN_FLOODING",
+        "ANIMAL_CARCASS",
+        "ILLEGAL_BANNER",
+        "ILLEGAL_FLYER",
+        "OBSTRUCTION_GOODS",
+        "ABANDONED_BIKE",
+        "ABANDONED_SCOOTER",
+        "ILLEGAL_PARKING_SAFETY",
+        "SCHOOL_ZONE_SAFETY",
+        "CONSTRUCTION_SAFETY",
+        "STREET_TREE_HAZARD"
+      ],
+      "applies_when_keywords": ["안전신고", "생활불편", "불법 주정차", "자동차 교통위반", "공공시설", "쓰레기"],
+      "key_rules": [
+        "Safety e-Report is the primary official domain frame for the MVP.",
+        "The official domain groups include safety reports, illegal parking, vehicle/traffic violations, and life-inconvenience reports.",
+        "Use this card to map user issues to the first official-domain layer before applying DongneSOS privacy profiles."
+      ],
+      "evidence_requirements": [
+        "Use the issue-specific source cards for precise evidence requirements.",
+        "If no precise card exists, ask for factual location, observed time, issue description, and photo availability."
+      ],
+      "privacy_notes": [
+        "Do not expose reporter or bystander PII in public copy.",
+        "Use official-only lane for target identifiers when the official domain requires them."
+      ],
+      "routing_notes": [
+        "If the exact local agency differs by district, return needs_official_verification rather than pretending to know the final department."
+      ],
+      "limitations": [
+        "This overview provides category structure, not every local processing rule."
+      ],
+      "refresh_priority": "monthly"
+    },
+    {
+      "source_id": "safetyreport_app_general_flow",
+      "source_name": "안전신문고 앱 신고 흐름 안내",
+      "source_type": "official_guide",
+      "publisher": "충청북도",
+      "source_url": "https://www.chungbuk.go.kr/safe/contents.do?key=4175",
+      "last_verified": "2026-06-24",
+      "official_domain": "안전신문고",
+      "applies_to_taxonomy_codes": [
+        "ROAD_SIDEWALK_DAMAGE",
+        "ROAD_POTHOLE",
+        "ROAD_SUBSIDENCE_CRACK",
+        "TACTILE_PAVING_DAMAGE",
+        "CROSSWALK_FADED",
+        "ROAD_SIGN_DAMAGE",
+        "MANHOLE_DEFECT",
+        "STREETLIGHT_OUT",
+        "TRAFFIC_LIGHT_FAULT",
+        "DRAIN_FLOODING",
+        "ILLEGAL_PARKING_SAFETY"
+      ],
+      "applies_when_keywords": ["안전신문고 앱", "사진", "위치", "신고 내용", "GPS", "지도"],
+      "key_rules": [
+        "Normal safety/life-inconvenience reporting flow expects report type, photo or video attachment, location selection, and report content.",
+        "The service should guide the user to gather evidence before leaving the scene."
+      ],
+      "evidence_requirements": [
+        "issue type",
+        "photo or video when available",
+        "location selected by GPS, map, or address",
+        "short factual report content"
+      ],
+      "privacy_notes": [
+        "Photo guidance must distinguish official evidence from public sharing.",
+        "Unrelated faces, private unit numbers, phone numbers, delivery labels, and home interiors should not be exposed publicly."
+      ],
+      "routing_notes": [
+        "Use as a general evidence-readiness card when the precise local guide is not available."
+      ],
+      "limitations": [
+        "Local government processing details can differ."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "safetyreport_illegal_parking_basic",
+      "source_name": "안전신문고 불법 주정차 신고 기본 요건",
+      "source_type": "official_guide",
+      "publisher": "충청북도",
+      "source_url": "https://www.chungbuk.go.kr/safe/contents.do?key=4175",
+      "last_verified": "2026-06-24",
+      "official_domain": "불법 주정차 신고",
+      "applies_to_taxonomy_codes": ["ILLEGAL_PARKING_SAFETY", "SCHOOL_ZONE_SAFETY"],
+      "applies_when_keywords": ["불법주정차", "주정차", "횡단보도", "소화전", "버스정류소", "어린이보호구역", "인도"],
+      "key_rules": [
+        "Illegal-parking reports can require multiple photos from the same position/direction with enough time gap.",
+        "Target vehicle, surrounding background, location, and shooting time are evidence context, not merely text noise."
+      ],
+      "evidence_requirements": [
+        "two or more photos",
+        "same or similar position and direction",
+        "at least one minute between photos for common illegal-parking zones",
+        "target vehicle and surrounding background identifiable",
+        "vehicle plate, location, and shooting time visible or inferable"
+      ],
+      "privacy_notes": [
+        "Target vehicle plate may be official-only evidence.",
+        "Vehicle plate should be removed from public neighbor-share text.",
+        "Bystander faces and children in photos should not be publicly shared."
+      ],
+      "routing_notes": [
+        "Use vehicle_target privacy profile."
+      ],
+      "limitations": [
+        "Time gaps and accepted zones can differ by local category."
+      ],
+      "refresh_priority": "monthly"
+    },
+    {
+      "source_id": "seoul_traffic_citizen_report",
+      "source_name": "서울시 교통법규 위반차량 시민신고제",
+      "source_type": "local_government_guide",
+      "publisher": "서울특별시",
+      "source_url": "https://news.seoul.go.kr/traffic/archives/507047",
+      "last_verified": "2026-06-25",
+      "official_domain": "교통법규 위반 시민신고",
+      "applies_to_taxonomy_codes": ["ILLEGAL_PARKING_SAFETY", "SCHOOL_ZONE_SAFETY"],
+      "applies_when_keywords": ["서울", "서울스마트불편신고", "보도", "횡단보도", "버스전용차로", "자전거전용차로"],
+      "key_rules": [
+        "서울 guide treats some traffic-law violations as citizen-reportable through smartphone app channels.",
+        "Parking/stopping violation evidence should identify violation area, vehicle number, and shooting time.",
+        "Dedicated-lane violations can use photo or video depending on category."
+      ],
+      "evidence_requirements": [
+        "same position and angle photos with time interval for parking/stopping violations",
+        "violation area identifiable",
+        "vehicle number identifiable",
+        "shooting time visible",
+        "submit within the guide's reporting window when applicable"
+      ],
+      "privacy_notes": [
+        "Vehicle number is official evidence for the target vehicle.",
+        "Do not put vehicle number in public neighbor-share text."
+      ],
+      "routing_notes": [
+        "For Seoul-specific prompts, mention 서울스마트불편신고 or 안전신문고 as possible channels while still asking the user to verify."
+      ],
+      "limitations": [
+        "This is Seoul-specific and should not be generalized to every district."
+      ],
+      "refresh_priority": "monthly"
+    },
+    {
+      "source_id": "haeundae_illegal_parking_resident_report",
+      "source_name": "해운대구 불법 주정차 주민신고제",
+      "source_type": "local_government_guide",
+      "publisher": "부산광역시 해운대구",
+      "source_url": "https://www.haeundae.go.kr/index.do?menuCd=DOM_000000105004006000",
+      "last_verified": "2026-06-25",
+      "official_domain": "불법 주정차 신고",
+      "applies_to_taxonomy_codes": ["ILLEGAL_PARKING_SAFETY", "SCHOOL_ZONE_SAFETY"],
+      "applies_when_keywords": ["해운대", "부산", "주민신고제", "어린이보호구역", "횡단보도", "보도", "버스정류소"],
+      "key_rules": [
+        "Resident illegal-parking reports can lead to processing without field dispatch when evidence meets requirements.",
+        "Photos should identify violation area, vehicle number, and shooting time.",
+        "Some school-zone cases require the photo to show that it is a school zone."
+      ],
+      "evidence_requirements": [
+        "two or more photos with same background and one-minute interval",
+        "violation area identifiable",
+        "vehicle number identifiable",
+        "shooting time shown",
+        "school-zone indication when reporting a school-zone case"
+      ],
+      "privacy_notes": [
+        "Vehicle plate can be official-only target evidence.",
+        "Public copy should not expose vehicle plate or children in school-zone photos."
+      ],
+      "routing_notes": [
+        "Use as an example of local variation and remind the user to check the relevant district guide."
+      ],
+      "limitations": [
+        "District-specific content may vary by city or ward."
+      ],
+      "refresh_priority": "monthly"
+    },
+    {
+      "source_id": "changwon_illegal_parking_photo_rules",
+      "source_name": "창원시 불법 주정차 주민신고제 입증사진 요건",
+      "source_type": "local_government_guide",
+      "publisher": "창원특례시",
+      "source_url": "https://www.changwon.go.kr/cwportal/depart/11064/13686/13688.web",
+      "last_verified": "2026-06-25",
+      "official_domain": "불법 주정차 신고",
+      "applies_to_taxonomy_codes": ["ILLEGAL_PARKING_SAFETY", "SCHOOL_ZONE_SAFETY"],
+      "applies_when_keywords": ["창원", "입증사진", "안전신문고 앱", "동일한 위치", "동일한 방향"],
+      "key_rules": [
+        "Some local guides require photos taken through the Safety e-Report app for illegal-parking resident reports.",
+        "The guide distinguishes one-minute and five-minute intervals by zone type.",
+        "Background context helps identify violation location."
+      ],
+      "evidence_requirements": [
+        "photos through Safety e-Report app when the local guide requires it",
+        "two or more photos of the same target vehicle from same location and direction",
+        "one-minute interval for major illegal-parking zones",
+        "five-minute interval for other zones when applicable",
+        "surrounding building or signboard context for location",
+        "vehicle number and shooting time shown"
+      ],
+      "privacy_notes": [
+        "Target plate is official-only evidence.",
+        "Public sharing should hide plate and unrelated faces."
+      ],
+      "routing_notes": [
+        "Use this card to warn that locally valid photo rules can be stricter than a generic summary."
+      ],
+      "limitations": [
+        "This is a local guide and should be used as a local-specific or cautionary source card."
+      ],
+      "refresh_priority": "monthly"
+    },
+    {
+      "source_id": "epeople_general_petition_intro",
+      "source_name": "국민신문고 민원소개",
+      "source_type": "official_overview",
+      "publisher": "국민권익위원회",
+      "source_url": "https://www.epeople.go.kr/nep/pttn/gnrlPttn/pttnNtrcnContent.npaid",
+      "last_verified": "2026-06-25",
+      "official_domain": "국민신문고 일반민원",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["국민신문고", "고충민원", "질의민원", "제도 개선", "관할 확인", "민원"],
+      "key_rules": [
+        "Use 국민신문고 as a fallback civil-petition frame when Safety e-Report routing is uncertain.",
+        "Public materials distinguish inquiry/interpretation requests, system-improvement proposals, and grievance petitions."
+      ],
+      "evidence_requirements": [
+        "factual background",
+        "question or requested action",
+        "related agency or local context when known",
+        "attachments only when relevant"
+      ],
+      "privacy_notes": [
+        "Do not put unnecessary reporter PII in draft body.",
+        "Use official form fields for required reporter identity or contact information."
+      ],
+      "routing_notes": [
+        "If the user asks where to ask or how to phrase an administrative inquiry, produce a neutral 관할 확인 요청 draft."
+      ],
+      "limitations": [
+        "This is not the right primary route for emergency, traffic enforcement, or issues with a clearer specialized channel."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "acrc_grievance_application",
+      "source_name": "국민권익위원회 고충민원 신청방법 안내",
+      "source_type": "official_guide",
+      "publisher": "국민권익위원회",
+      "source_url": "https://www.acrc.go.kr/menu.es?mid=a10201010000",
+      "last_verified": "2026-06-25",
+      "official_domain": "고충민원",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["고충민원", "행정기관", "소극행정", "부당", "위법", "불합리", "권리 침해"],
+      "key_rules": [
+        "Grievance-petition routing is appropriate when the issue is about administrative action or inaction rather than an incident report.",
+        "ACRC routes online grievance applications through 국민신문고."
+      ],
+      "evidence_requirements": [
+        "what administrative action or inaction caused the burden",
+        "agency or office involved when known",
+        "dates, prior requests, replies, or case numbers when available"
+      ],
+      "privacy_notes": [
+        "Avoid public neighbor-share text for disputes with agencies or named officials.",
+        "Use factual chronology and remove personal attacks."
+      ],
+      "routing_notes": [
+        "Do not route ordinary illegal parking, emergency, or simple civic-facility defects here unless the user is complaining about agency handling."
+      ],
+      "limitations": [
+        "Exact 처리기간 and scope can vary by 민원 type and agency."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "pipc_vehicle_plate_personal_info",
+      "source_name": "개인정보보호위원회 자동차등록번호 개인정보 해석",
+      "source_type": "official_privacy_guidance",
+      "publisher": "개인정보보호위원회",
+      "source_url": "https://www.pipc.go.kr/np/cop/bbs/selectBoardArticle.do?bbsId=BS292&mCode=I040010000&nttId=10666",
+      "last_verified": "2026-06-25",
+      "official_domain": "개인정보 보호",
+      "applies_to_taxonomy_codes": ["ILLEGAL_PARKING_SAFETY", "SCHOOL_ZONE_SAFETY"],
+      "applies_when_keywords": ["차량번호", "자동차등록번호", "번호판", "개인정보", "차량"],
+      "key_rules": [
+        "Vehicle registration number is generally not personal information by itself.",
+        "It can become personal information in special contexts when combined with other information or used to identify an owner/driver.",
+        "DongneSOS should treat target vehicle plate as official-only when needed and redact it from public sharing."
+      ],
+      "evidence_requirements": [
+        "when vehicle is the report target, keep plate available for official report lane",
+        "when vehicle is unrelated, treat as bystander identifier and redact"
+      ],
+      "privacy_notes": [
+        "Do not publish vehicle plate in neighbor-share text.",
+        "Be stricter when plate is combined with name, phone, apartment resident DB, unit, or location history."
+      ],
+      "routing_notes": [
+        "Use this card whenever the user asks whether a plate can appear in official/public text."
+      ],
+      "limitations": [
+        "This card is product-risk guidance, not legal advice."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "privacy_act_article_15_basis",
+      "source_name": "개인정보 보호법 제15조 개인정보의 수집ㆍ이용",
+      "source_type": "law",
+      "publisher": "국가법령정보센터",
+      "source_url": "https://www.law.go.kr/LSW/lsLawLinkInfo.do?chrClsCd=010202&lsId=011357&lsJoLnkSeq=900078940&print=print",
+      "last_verified": "2026-06-24",
+      "official_domain": "개인정보 보호",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["개인정보", "수집", "이용", "공공기관", "법령", "민원"],
+      "key_rules": [
+        "Personal information collection/use depends on legal basis and purpose.",
+        "DongneSOS should not claim final legality; it should minimize data in generated text and separate official-only from public copy."
+      ],
+      "evidence_requirements": [
+        "only include sensitive or identifying details when tied to the official reporting purpose",
+        "avoid repeating reporter PII in body text"
+      ],
+      "privacy_notes": [
+        "Use data minimization as a product principle.",
+        "When in doubt, keep sensitive values out of public text and place user-only guidance in private notes."
+      ],
+      "routing_notes": [
+        "Use as a cross-cutting privacy basis, not an issue classifier."
+      ],
+      "limitations": [
+        "High-stakes legal interpretation requires competent authority or counsel."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "petition_act_article_7_confidentiality",
+      "source_name": "민원 처리에 관한 법률 제7조 정보 보호",
+      "source_type": "law",
+      "publisher": "국가법령정보센터",
+      "source_url": "https://www.law.go.kr/LSW//lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0007&lsiSeq=239293&urlMode=lsScJoRltInfoR",
+      "last_verified": "2026-06-24",
+      "official_domain": "민원 정보 보호",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["민원", "정보 보호", "누설", "목적 외", "특정인", "개인정보"],
+      "key_rules": [
+        "Administrative petition handling has confidentiality and purpose-limitation duties for petition contents and personal information of petitioners or specific persons.",
+        "DongneSOS should reflect that official processing and public sharing are different lanes."
+      ],
+      "evidence_requirements": [
+        "official report can contain necessary facts for processing",
+        "public neighbor-share copy should remove personal identifiers and sensitive specifics"
+      ],
+      "privacy_notes": [
+        "Do not conflate official submission content with public community posting.",
+        "Use public copy as a notice, not a duplicate of the official report."
+      ],
+      "routing_notes": [
+        "Use as a policy justification for privacy lanes."
+      ],
+      "limitations": [
+        "This card does not decide which exact agency receives the petition."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "epeople_privacy_notice",
+      "source_name": "국민신문고 개인정보 처리방침",
+      "source_type": "official_privacy_notice",
+      "publisher": "국민권익위원회",
+      "source_url": "https://www.epeople.go.kr/nep/gdnc/PlHndPlc.npaid",
+      "last_verified": "2026-06-24",
+      "official_domain": "국민신문고 개인정보 처리",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["국민신문고", "개인정보", "민원 처리", "피신고자", "신고자"],
+      "key_rules": [
+        "국민신문고 processes personal data for petition, proposal, and report handling by competent agencies and linked systems.",
+        "DongneSOS should not include reporter identity/contact in body text when the official form has separate fields."
+      ],
+      "evidence_requirements": [
+        "use separate official form fields for user identity/contact where required",
+        "keep draft body focused on facts and request"
+      ],
+      "privacy_notes": [
+        "Public sharing should not copy official petition details that include specific persons.",
+        "Private notes can remind the user that official forms may ask for identity/contact data."
+      ],
+      "routing_notes": [
+        "Use when the user asks whether official channels process personal data."
+      ],
+      "limitations": [
+        "Exact collection items can differ by petition type and competent agency."
+      ],
+      "refresh_priority": "quarterly"
+    },
+    {
+      "source_id": "acrc_privacy_notice",
+      "source_name": "국민권익위원회 개인정보 처리방침",
+      "source_type": "official_privacy_notice",
+      "publisher": "국민권익위원회",
+      "source_url": "https://www.acrc.go.kr/menu.es?mid=a10702000000",
+      "last_verified": "2026-06-24",
+      "official_domain": "국민권익위원회 개인정보 처리",
+      "applies_to_taxonomy_codes": [],
+      "applies_when_keywords": ["권익위", "개인정보", "민원", "고충민원", "최소한"],
+      "key_rules": [
+        "ACRC privacy notice frames personal-data handling around public service, petition handling, and official duties.",
+        "DongneSOS should keep generated text minimal and purpose-bound."
+      ],
+      "evidence_requirements": [
+        "facts necessary for petition handling",
+        "avoid unnecessary sensitive personal details"
+      ],
+      "privacy_notes": [
+        "Use minimum necessary detail in official drafts.",
+        "Use stricter redaction for public sharing."
+      ],
+      "routing_notes": [
+        "Use as a supporting privacy source for 국민신문고 and ACRC-related petition flows."
+      ],
+      "limitations": [
+        "This source is privacy-policy context, not a category-specific reporting guide."
+      ],
+      "refresh_priority": "quarterly"
+    }
+  ]
+}

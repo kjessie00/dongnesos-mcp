@@ -121,6 +121,8 @@ design, see `docs/actual-use-and-neighbor-help-design.md`.
 
 For the product differentiation against ordinary search, see
 `docs/search-vs-dongnesos-service-value-20260625.md`.
+The initial official source-card corpus lives in `data/source_cards.json` and
+is validated by `npm run validate:data`.
 
 For owner approval and external deployment stop rules, see
 `deploy/playmcp/owner-approval-packet.md`.

@@ -80,6 +80,40 @@ export interface CopyRules {
   short_problem_default: string;
 }
 
+export type SourceCardType =
+  | "official_overview"
+  | "official_guide"
+  | "official_privacy_guidance"
+  | "official_privacy_notice"
+  | "local_government_guide"
+  | "law";
+
+export type SourceRefreshPriority = "monthly" | "quarterly";
+
+export interface SourceCard {
+  source_id: string;
+  source_name: string;
+  source_type: SourceCardType;
+  publisher: string;
+  source_url: string;
+  last_verified: string;
+  official_domain: string;
+  applies_to_taxonomy_codes: string[];
+  applies_when_keywords: string[];
+  key_rules: string[];
+  evidence_requirements: string[];
+  privacy_notes: string[];
+  routing_notes: string[];
+  limitations: string[];
+  refresh_priority: SourceRefreshPriority;
+}
+
+export interface SourceCardsData {
+  schema_version: string;
+  last_compiled: string;
+  cards: SourceCard[];
+}
+
 export interface ClassifyInput {
   description: string;
   region_hint?: string;

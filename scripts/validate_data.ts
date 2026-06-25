@@ -1,4 +1,4 @@
-import { assertDataIsValid, taxonomyData } from "../src/data/loadData.js";
+import { assertDataIsValid, sourceCardsData, taxonomyData } from "../src/data/loadData.js";
 
 assertDataIsValid();
 
@@ -24,3 +24,4 @@ for (const code of requiredSpecialCodes) {
 }
 
 console.log(`Data OK: ${taxonomyData.items.length} taxonomy items, ${taxonomyData.special_codes.length} special codes.`);
+console.log(`Source cards OK: ${sourceCardsData.cards.length} official source cards.`);
