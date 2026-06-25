@@ -91,6 +91,117 @@ DongneSOS compresses four separate searches into one tool call:
 This is why it can be more useful than search even when all source information
 is public.
 
+## Search Substitution Strategy
+
+DongneSOS should still be search-backed. The difference is that the service
+does the search work ahead of time, keeps the official evidence structured, and
+answers from a compact source-backed action model instead of making the user
+read search results.
+
+The target experience is:
+
+```text
+user's messy local problem
+-> fast match against official source cards
+-> concise action card with source-backed assumptions
+-> official/public/privacy-safe drafts
+```
+
+### Fast And Accurate Beats Live Broad Search
+
+Do not run a broad live web search for every user question by default. It is
+too slow, noisy, and hard to make deterministic inside a review-grade MCP tool.
+
+Instead, use three evidence layers:
+
+1. **Bundled official source cards**
+   - Curated from official sources such as Safety e-Report, 국민신문고, and
+     local-government reporting guides.
+   - Stored with `source_url`, `last_verified`, `official_domain`,
+     `evidence_requirements`, `privacy_notes`, and `routing_limitations`.
+   - Fast enough for normal MCP calls.
+
+2. **Rule-backed matching**
+   - User input maps to an official domain and internal privacy profile.
+   - The answer cites the source card basis without forcing the user to read
+     the whole page.
+
+3. **Fresh verification path**
+   - When a rule is likely local, contested, or stale, output
+     `needs_official_verification` instead of pretending.
+   - A future external-search mode can refresh source cards, but that is a
+     maintenance/research lane, not the default user-facing response path.
+
+This gives the user the benefit of search without the cost of search.
+
+### Source Card Shape
+
+Each official rule should become a small structured card:
+
+```json
+{
+  "source_id": "safetyreport_illegal_parking_basic",
+  "source_name": "안전신문고 불법 주정차 신고 안내",
+  "source_url": "https://www.chungbuk.go.kr/safe/contents.do?key=4175",
+  "last_verified": "2026-06-24",
+  "official_domain": "불법 주정차 신고",
+  "applies_when": ["횡단보도", "소화전", "버스정류소", "어린이보호구역", "인도"],
+  "evidence_requirements": [
+    "같은 위치와 방향에서 촬영한 사진 2장 이상",
+    "사진 간격 1분 이상",
+    "차량번호, 위치, 촬영시각 식별"
+  ],
+  "privacy_notes": [
+    "차량번호는 공식 신고 대상 특정에 필요할 수 있음",
+    "공개 공유문에는 차량번호와 무관한 얼굴을 제거"
+  ],
+  "limitations": [
+    "세부 운영 기준은 지자체와 신고 항목별로 달라질 수 있음"
+  ]
+}
+```
+
+The user should see only the useful output:
+
+```text
+공식 신고에는 차량번호/위치/촬영시각이 필요할 수 있습니다. 동네 공유글에는 차량번호와 아이 얼굴을 넣지 마세요.
+```
+
+The source card remains available as evidence for reviewers and debugging.
+
+### Response-Time Target
+
+For normal user calls:
+
+- No live web search.
+- Use bundled source cards and deterministic rules.
+- Target answer time: sub-second to a few seconds, depending on client LLM
+  latency.
+- If the answer depends on unknown local policy, return a short verification
+  note instead of searching broadly.
+
+For maintenance/research calls:
+
+- Periodically refresh official source cards.
+- Re-check source URLs and `last_verified`.
+- Add new local-government guide cards only when they materially improve a
+  supported issue type.
+
+### Accuracy Target
+
+Accuracy should not mean "always names the exact agency." In local civic
+reporting, that can vary by district.
+
+Accuracy should mean:
+
+- correct official domain when the source supports it
+- correct evidence checklist
+- correct privacy lane handling
+- honest uncertainty when jurisdiction or agency differs locally
+- concise next action the user can immediately follow
+
+This is a more defensible service target than broad search-result summarization.
+
 ## The Service Promise
 
 User-facing promise:
