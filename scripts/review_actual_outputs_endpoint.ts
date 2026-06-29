@@ -142,12 +142,38 @@ function booleanValue(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 function jsonText(...values: unknown[]): string {
   return values.map((value) => JSON.stringify(value, null, 2)).join("\n");
 }
 
 function hasRawUnsafeText(text: string): boolean {
-  return /010-1234-5678|101동\s*1203호|불법\s*확정|처벌받게|확인 필요이니|관찰\s*(일시|시간대)을|신고문\s*써줘/.test(text);
+  return /010-1234-5678|101동\s*1203호|불법\s*확정|처벌받게|확인 필요이니|관찰\s*(일시|시간대)을|신고문\s*써줘|분류되었습니다|분류됩니다/.test(text);
+}
+
+function routeLabels(value: ToolOutput): string[] {
+  const routes = Array.isArray(value.official_routes)
+    ? value.official_routes
+    : Array.isArray(asRecord(value.action_card).official_routes)
+      ? (asRecord(value.action_card).official_routes as unknown[])
+      : [];
+  return routes.map(asRecord).map((route) => stringValue(route.label));
+}
+
+function hasRoute(value: ToolOutput, pattern: RegExp): boolean {
+  return routeLabels(value).some((label) => pattern.test(label));
+}
+
+function legalSourceIds(value: ToolOutput): string[] {
+  const contexts = Array.isArray(value.legal_context)
+    ? value.legal_context
+    : Array.isArray(asRecord(value.action_card).legal_context)
+      ? (asRecord(value.action_card).legal_context as unknown[])
+      : [];
+  return contexts.map(asRecord).map((context) => stringValue(context.source_id));
 }
 
 function caseGates(result: CaseResult): Gate[] {
@@ -192,7 +218,11 @@ function caseGates(result: CaseResult): Gate[] {
     const shareText = stringValue(asRecord(draft.share).neighbor_text);
     gates.push(
       { name: "draft_created", pass: stringValue(draft.result_type) === "draft" },
+      { name: "copy_ready_structured", pass: stringValue(draftObj.copy_block).startsWith("제목:") && stringValue(draftObj.copy_block).includes("요청사항:") },
       { name: "title_not_duplicated", pass: !stringValue(draftObj.copy_block).startsWith(`${title}\n\n${title}`) },
+      { name: "official_route_safetyreport", pass: hasRoute(draft, /안전신문고/) },
+      { name: "official_route_epeople", pass: hasRoute(draft, /국민신문고/) },
+      { name: "official_route_local_direct", pass: hasRoute(draft, /지역\/구청 공식 생활민원 페이지 직접 선택/) },
       {
         name: "title_privacy_clean",
         pass:
@@ -208,6 +238,10 @@ function caseGates(result: CaseResult): Gate[] {
       { name: "unit_address_masked", pass: stringValue(draftObj.copy_block).includes("[동호수 비공개]") },
       { name: "unit_mask_field", pass: Array.isArray(draftSafety.masked_fields) && draftSafety.masked_fields.includes("unit_address") }
     );
+  }
+
+  if (result.id === "legal_certainty_restaurant" || result.id.startsWith("neighbor_")) {
+    gates.push({ name: "privacy_context_present", pass: legalSourceIds(classification).includes("privacy_act_article_15_basis") || stringValue(classification.result_type) === "out_of_scope" });
   }
 
   return gates;

@@ -55,6 +55,28 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function routeLabels(content: Record<string, unknown>): string[] {
+  const routes = Array.isArray(content.official_routes)
+    ? content.official_routes
+    : Array.isArray(asRecord(content.action_card).official_routes)
+      ? (asRecord(content.action_card).official_routes as unknown[])
+      : [];
+  return routes.map(asRecord).map((route) => stringValue(route.label) ?? "");
+}
+
+function hasRoute(content: Record<string, unknown>, pattern: RegExp): boolean {
+  return routeLabels(content).some((label) => pattern.test(label));
+}
+
+function legalSourceIds(content: Record<string, unknown>): string[] {
+  const contexts = Array.isArray(content.legal_context)
+    ? content.legal_context
+    : Array.isArray(asRecord(content.action_card).legal_context)
+      ? (asRecord(content.action_card).legal_context as unknown[])
+      : [];
+  return contexts.map(asRecord).map((context) => stringValue(context.source_id) ?? "");
+}
+
 function hasErrorCode(errors: unknown, code: string): boolean {
   return Array.isArray(errors) && errors.some((item) => stringValue(asRecord(item).code) === code);
 }
@@ -110,7 +132,10 @@ try {
         name: "no_duplicate_title",
         pass: draftRoadTitle.length > 0 && !draftRoadCopy.startsWith(`${draftRoadTitle}\n\n${draftRoadTitle}`)
       },
-      { name: "copy_ready", pass: draftRoadCopy.includes("안녕하세요.") && draftRoadCopy.includes("실제 접수") }
+      { name: "copy_ready", pass: draftRoadCopy.startsWith("제목:") && draftRoadCopy.includes("요청사항:") && draftRoadCopy.includes("실제 접수") },
+      { name: "official_route_safetyreport", pass: hasRoute(draftRoad, /안전신문고/) },
+      { name: "official_route_epeople", pass: hasRoute(draftRoad, /국민신문고/) },
+      { name: "official_route_local_direct", pass: hasRoute(draftRoad, /지역\/구청 공식 생활민원 페이지 직접 선택/) }
     ])
   );
 
@@ -232,7 +257,38 @@ try {
         pass: matchedCards.some((card) => stringValue(card.source_id) === "pipc_vehicle_plate_personal_info")
       },
       { name: "evidence_guidance", pass: evidenceNow.some((item) => /사진|차량번호|촬영/.test(item)) },
-      { name: "public_privacy_guidance", pass: doNotShare.some((item) => /차량번호|아동|얼굴/.test(item)) }
+      { name: "public_privacy_guidance", pass: doNotShare.some((item) => /차량번호|아동|얼굴/.test(item)) },
+      { name: "official_route_safetyreport", pass: hasRoute(classifyVehiclePrivacy, /안전신문고/) },
+      { name: "official_route_epeople", pass: hasRoute(classifyVehiclePrivacy, /국민신문고/) },
+      { name: "official_route_local_direct", pass: hasRoute(classifyVehiclePrivacy, /지역\/구청 공식 생활민원 페이지 직접 선택/) },
+      { name: "privacy_legal_context", pass: legalSourceIds(classifyVehiclePrivacy).includes("pipc_vehicle_plate_personal_info") }
+    ])
+  );
+
+  const draftVehiclePrivacy = await callTool(client, "draft_civic_report", {
+    issue_code: "ILLEGAL_PARKING_SAFETY",
+    facts: {
+      what: "OO초 앞 횡단보도 입구에 12가3456 차량이 불법주정차로 계속 서 있습니다.",
+      where_general: "OO초 앞 횡단보도 입구",
+      impact: "아이들 통행이 위험합니다.",
+      photo_note: "차량과 주변 배경이 보이는 사진을 첨부합니다. 아이 얼굴은 공개 공유문에 쓰지 않습니다."
+    },
+    include_neighbor_share_text: true,
+    language: "ko"
+  });
+  const vehicleDraftCopy = stringValue(asRecord(draftVehiclePrivacy.draft).copy_block) ?? "";
+  const vehicleShareText = stringValue(asRecord(draftVehiclePrivacy.share).neighbor_text) ?? "";
+  const privacyRedactions = stringArray(draftVehiclePrivacy.privacy_redactions);
+  cases.push(
+    buildCase("answer-quality-official-public-lane", "official draft and public share are separated for illegal parking", draftVehiclePrivacy, [
+      { name: "draft", pass: stringValue(draftVehiclePrivacy.result_type) === "draft" },
+      { name: "copy_ready", pass: vehicleDraftCopy.startsWith("제목:") && vehicleDraftCopy.includes("요청사항:") },
+      { name: "official_keeps_target_plate", pass: vehicleDraftCopy.includes("12가3456") },
+      { name: "public_share_removes_plate", pass: !vehicleShareText.includes("12가3456") },
+      { name: "privacy_redaction_plate", pass: privacyRedactions.some((item) => item.includes("차량번호")) },
+      { name: "official_route_safetyreport", pass: hasRoute(draftVehiclePrivacy, /안전신문고/) },
+      { name: "official_route_epeople", pass: hasRoute(draftVehiclePrivacy, /국민신문고/) },
+      { name: "privacy_legal_context", pass: legalSourceIds(draftVehiclePrivacy).includes("pipc_vehicle_plate_personal_info") }
     ])
   );
 
