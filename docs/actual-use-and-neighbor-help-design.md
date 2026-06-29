@@ -2,6 +2,8 @@
 
 Date: 2026-06-22
 
+Latest verification update: 2026-06-29
+
 This document separates what can be tested with the current PlayMCP candidate
 from a future expansion inspired by local-neighbor help posts often seen in
 community apps such as Danggeun. The current submitted server remains a civic
@@ -30,7 +32,7 @@ https://github.com/kjessie00/dongnesos-mcp
 Current PlayMCP endpoint:
 
 ```text
-https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp
+https://dongnesos-mcp-v5.playmcp-endpoint.kakaocloud.io/mcp
 ```
 
 ## Actual Use Verification
@@ -45,8 +47,8 @@ Run this from the local repo:
 
 ```bash
 cd /Users/jessiek/StudioProjects/dongnesos-mcp
-MCP_URL=https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp \
-EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke-manual-use.json \
+MCP_URL=https://dongnesos-mcp-v5.playmcp-endpoint.kakaocloud.io/mcp \
+EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke-v5-source-card-20260629.json \
 npm run smoke:endpoint
 ```
 
@@ -67,9 +69,9 @@ Run this after every PlayMCP in KC rebuild or endpoint change:
 
 ```bash
 cd /Users/jessiek/StudioProjects/dongnesos-mcp
-MCP_URL=https://dongnesos-mcp-v3.playmcp-endpoint.kakaocloud.io/mcp \
+MCP_URL=https://dongnesos-mcp-v5.playmcp-endpoint.kakaocloud.io/mcp \
 COMMIT_EXPECTED=$(git rev-parse --short HEAD) \
-EVIDENCE_OUT=deploy/playmcp/evidence/remote-actual-use-p1.json \
+EVIDENCE_OUT=deploy/playmcp/evidence/remote-actual-use-v5-source-card-20260629.json \
 npm run smoke:actual-use:endpoint
 ```
 
@@ -142,12 +144,49 @@ Use this sequence in a live review:
 
 Evidence to capture after a live manual run:
 
-- Screenshot of PlayMCP temporary registration showing endpoint v2, Online,
+- Screenshot of PlayMCP temporary registration showing endpoint v5, Online,
   Tools 2.
 - Screenshot or copied transcript of the normal case.
 - Screenshot or copied transcript of the emergency PII case.
 - Fresh `remote-smoke-manual-use.json`.
 - Fresh `remote-actual-use-p1.json`.
+
+### 2026-06-29 PlayMCP Toolbox Result
+
+The real `https://playmcp.kakao.com/toolbox` side chat was tested with
+`동네SOS` active and the console registration pointing at:
+
+```text
+https://dongnesos-mcp-v5.playmcp-endpoint.kakaocloud.io/mcp
+```
+
+Observed:
+
+- Console registration: Online, Tools 2, endpoint v5.
+- Toolbox: `동네SOS` active, MCP Online, Tools 2.
+- Illegal-parking/public-sharing case: `classify_civic_issue` and
+  `draft_civic_report` both called successfully. Final answer included safety
+  parking classification, Safety e-Report / local office channel guidance,
+  photo/evidence guidance, and a warning not to publicly share the vehicle
+  number or children's faces.
+- Park glass hazard case: both tools called successfully. Final answer
+  separated location, situation, photo caution, local government channel, and
+  public-sharing caution. Quality note: the internal tool trace included some
+  privacy source names that were less specific than the park-hazard case, but
+  the user-facing answer stayed usable and aligned with the civic-report goal.
+- Neighbor-help request: no civic tool call was needed. The final answer stated
+  that DongneSOS does not directly support personal-help matching in the
+  current version, then gave safety guidance about not publicly exposing exact
+  address or phone number and using platform messages first.
+
+Evidence screenshots:
+
+```text
+deploy/playmcp/evidence/playmcp-console-v5-updated-20260629.png
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-source-card-privacy-20260629.png
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-source-card-park-glass-20260629.png
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-neighbor-help-boundary-20260629.png
+```
 
 ## Neighbor Help Exchange Expansion
 

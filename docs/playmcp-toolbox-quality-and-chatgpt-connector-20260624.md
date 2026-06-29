@@ -1,5 +1,39 @@
 # PlayMCP Toolbox Quality And ChatGPT Connector Check - 2026-06-24
 
+## 2026-06-29 Supersession Note
+
+This 2026-06-24 report records the stale-v3 failure state. It is now superseded
+for PlayMCP toolbox readiness by the 2026-06-29 v5 Git source deployment.
+
+Current verified state:
+
+- PlayMCP in KC server `dongnesos-mcp-v5` is Active.
+- Endpoint:
+  `https://dongnesos-mcp-v5.playmcp-endpoint.kakaocloud.io/mcp`
+- PlayMCP developer-console temporary registration `동네SOS` is Online, Tools 2,
+  and displays endpoint v5.
+- Remote strict smoke passed.
+- Remote actual-use smoke passed with 9 cases.
+- Remote actual-output review passed with 8 cases.
+- Real `https://playmcp.kakao.com/toolbox` side chat called both tools
+  successfully for the illegal-parking/privacy case and park-glass hazard case.
+- The personal neighbor-help case is still current-scope boundary behavior:
+  the answer says DongneSOS does not directly support personal-help matching and
+  gives safe posting guidance. Full neighbor-help exchange remains a future
+  design, not implemented MCP functionality.
+
+Evidence:
+
+```text
+deploy/playmcp/evidence/playmcp-console-v5-updated-20260629.png
+deploy/playmcp/evidence/remote-smoke-v5-source-card-20260629.json
+deploy/playmcp/evidence/remote-actual-use-v5-source-card-20260629.json
+deploy/playmcp/evidence/remote-actual-output-review-v5-source-card-20260629.md
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-source-card-privacy-20260629.png
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-source-card-park-glass-20260629.png
+deploy/playmcp/evidence/playmcp-toolbox-v5-chat-neighbor-help-boundary-20260629.png
+```
+
 ## Verdict
 
 Current PlayMCP toolbox output is not review-ready.
