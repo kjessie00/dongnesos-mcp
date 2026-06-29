@@ -5,6 +5,9 @@ import { maskPii } from "./pii.js";
 import { neutralizeForbiddenClaims } from "./neutralize.js";
 import { normalizeText } from "./normalize.js";
 import { draftCard } from "./presentationMock.js";
+import { buildLegalContext, buildOfficialRoutes } from "./officialGuidance.js";
+
+const officialVehiclePlatePattern = /\b\d{2,3}\s?[가-힣]\s?\d{4}\b/g;
 
 export function draftCivicReport(input: DraftInput): DraftOutput {
   const errors: SosError[] = [];
@@ -32,13 +35,15 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     return failure("error", "E_UNKNOWN_ISSUE_CODE", "알 수 없는 생활불편 유형입니다. classify_civic_issue를 먼저 호출해 주세요.");
   }
 
-  const maskedWhat = maskPii(what);
+  const maskedWhat = maskOfficialReportText(what, item);
   const maskedWhere = maskPii(input.facts?.where_general ?? "");
   const maskedImpact = maskPii(impact);
+  const maskedPhotoNote = maskOfficialReportText(input.facts?.photo_note ?? "", item);
   const neutralWhat = neutralizeForbiddenClaims(maskedWhat.text);
   const neutralImpact = neutralizeForbiddenClaims(maskedImpact.text);
-  const piiDetected = maskedWhat.detected || maskedWhere.detected || maskedImpact.detected;
-  const maskedFields = [...maskedWhat.maskedFields, ...maskedWhere.maskedFields, ...maskedImpact.maskedFields];
+  const neutralPhotoNote = neutralizeForbiddenClaims(maskedPhotoNote.text);
+  const piiDetected = maskedWhat.detected || maskedWhere.detected || maskedImpact.detected || maskedPhotoNote.detected;
+  const maskedFields = [...maskedWhat.maskedFields, ...maskedWhere.maskedFields, ...maskedImpact.maskedFields, ...maskedPhotoNote.maskedFields];
   const neutralized = [...neutralWhat.removed, ...neutralImpact.removed];
 
   if (piiDetected) {
@@ -51,6 +56,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
   const where = maskedWhere.text || copyRules.fallback_where;
   const when = normalizeText(input.facts?.when_observed ?? "") || copyRules.fallback_when;
   const safeImpact = neutralImpact.text || impact || defaultImpact(item);
+  const photoNote = neutralPhotoNote.text || "가능하면 현장 사진을 첨부합니다.";
   const placeholders = [
     where === copyRules.fallback_where ? copyRules.fallback_where : null,
     when === copyRules.fallback_when ? copyRules.fallback_when : null
@@ -59,20 +65,21 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
   const problem = shortProblem(item, neutralWhat.text);
   const titleWhere = titleLocation(where);
   const title = [`[${item.label_ko}]`, titleWhere, `${problem} 점검 요청`].filter(Boolean).join(" ");
-  const body = replaceFirstLine(
-    fillTemplate(item, {
-      issue_label: item.label_ko,
-      where_general: where,
-      short_problem: problem,
-      what: neutralWhat.text,
-      when_observed: when,
-      impact: safeImpact,
-      request_phrase: item.request_phrase
-    }),
-    title
-  );
+  const body = buildOfficialReportCopy({
+    title,
+    what: neutralWhat.text,
+    where,
+    when,
+    impact: safeImpact,
+    photoNote,
+    requestPhrase: item.request_phrase
+  });
 
   const suggested = suggestedChannel(item);
+  const officialRoutes = buildOfficialRoutes(item.channel_family);
+  const isIllegalParking = item.code === "ILLEGAL_PARKING_SAFETY" || item.code === "SCHOOL_ZONE_SAFETY";
+  const legalContext = buildLegalContext({ hasPrivacyRisk: piiDetected || Boolean(input.include_neighbor_share_text), isIllegalParking });
+  const privacyRedactions = privacyRedactionsFor(item, piiDetected);
   const evidence = [
     ...item.evidence_required.map((text) => `□ ${text}`),
     ...item.evidence_optional.slice(0, 2).map((text) => `□ 선택: ${text}`),
@@ -95,6 +102,9 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
       evidence_checklist: evidence,
       placeholders_to_fill: placeholders
     },
+    official_routes: officialRoutes,
+    legal_context: legalContext,
+    privacy_redactions: privacyRedactions,
     share: {
       neighbor_text: neighborText,
       private_note: "자동 발송되지 않습니다. 사용자가 직접 복사해 필요한 곳에 붙여 넣는 문구입니다."
@@ -121,27 +131,83 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
   return output;
 }
 
-function fillTemplate(item: TaxonomyItem, values: Record<string, string>): string {
-  let text = copyRules.base_draft_template;
-  for (const [key, value] of Object.entries(values)) {
-    text = text.split(`{{${key}}}`).join(value);
-  }
-  // Keep the request phrase from taxonomy authoritative even when the template changes.
-  return text.split("{{request_phrase}}").join(item.request_phrase);
-}
-
-function replaceFirstLine(text: string, firstLine: string): string {
-  const lines = text.split("\n");
-  lines[0] = firstLine;
-  return lines.join("\n");
-}
-
 function fillNeighborTemplate(item: TaxonomyItem, where: string): string {
   return copyRules.neighbor_share_template
     .split("{{where_general}}")
     .join(shareLocation(where))
     .split("{{issue_label}}")
     .join(item.label_ko);
+}
+
+function buildOfficialReportCopy(values: {
+  title: string;
+  what: string;
+  where: string;
+  when: string;
+  impact: string;
+  photoNote: string;
+  requestPhrase: string;
+}): string {
+  return [
+    `제목: ${values.title}`,
+    "",
+    "내용:",
+    `${values.where}에 다음 생활불편이 있습니다.`,
+    `- 현장 상황: ${values.what}`,
+    `- 관찰 일시: ${values.when}`,
+    `- 영향: ${values.impact}`,
+    "",
+    `위치: ${values.where}`,
+    `첨부: ${values.photoNote}`,
+    `요청사항: ${values.requestPhrase}`,
+    "",
+    "※ 신고 준비용 초안입니다. 실제 접수는 사용자가 공식 채널에서 직접 진행해야 합니다.",
+    "※ 처리기간, 담당부서, 행정조치는 사안과 지역에 따라 달라질 수 있습니다."
+  ].join("\n");
+}
+
+function maskOfficialReportText(text: string, item: TaxonomyItem): ReturnType<typeof maskPii> {
+  const normalized = normalizeText(text);
+  if (!shouldKeepVehiclePlateForOfficialReport(item)) {
+    return maskPii(normalized);
+  }
+
+  const plates = Array.from(normalized.matchAll(officialVehiclePlatePattern), (match) => match[0]);
+  if (!plates.length) {
+    return maskPii(normalized);
+  }
+
+  let protectedText = normalized;
+  plates.forEach((plate, index) => {
+    protectedText = protectedText.split(plate).join(`__OFFICIAL_VEHICLE_${index}__`);
+  });
+
+  const masked = maskPii(protectedText);
+  let restoredText = masked.text;
+  plates.forEach((plate, index) => {
+    restoredText = restoredText.split(`__OFFICIAL_VEHICLE_${index}__`).join(plate);
+  });
+
+  return {
+    text: restoredText,
+    detected: true,
+    maskedFields: Array.from(new Set([...masked.maskedFields, "vehicle_plate_official_only"]))
+  };
+}
+
+function shouldKeepVehiclePlateForOfficialReport(item: TaxonomyItem): boolean {
+  return item.code === "ILLEGAL_PARKING_SAFETY" || item.code === "SCHOOL_ZONE_SAFETY";
+}
+
+function privacyRedactionsFor(item: TaxonomyItem, piiDetected: boolean): string[] {
+  const base = ["공개 동네방 글에는 전화번호, 실명, 정확한 주소·호수, 현관 비밀번호를 넣지 마세요.", "사진 속 행인·아이 얼굴은 공개하지 말고 가리세요."];
+  if (shouldKeepVehiclePlateForOfficialReport(item)) {
+    base.unshift("차량번호는 공식 신고용 사실관계로만 쓰고 공개 공유문에는 넣지 마세요.");
+  }
+  if (piiDetected) {
+    base.push("입력에서 식별정보가 감지되어 공식 신고용과 공개 공유용을 분리했습니다.");
+  }
+  return base;
 }
 
 function shortProblem(item: TaxonomyItem, what: string): string {
@@ -179,9 +245,9 @@ function defaultImpact(item: TaxonomyItem): string {
 function suggestedChannel(item: TaxonomyItem): string {
   const channel = channelsData[item.channel_family];
   if (item.channel_family === "LOCAL_CIVIC_VERIFY") {
-    return `${channel.label} — 세부 접수처 확인 필요`;
+    return `${channel.label} — 지역/구청 공식 생활민원 페이지에서 직접 선택`;
   }
-  return `${channel.label} 또는 해당 지자체 생활민원 창구 — 세부 접수처 확인 필요`;
+  return `${channel.label} / 국민신문고 일반민원 / 지역·구청 공식 생활민원 페이지 직접 선택`;
 }
 
 function resolveDraftTaxonomyItem(issueCode: string, input: DraftInput): TaxonomyItem | undefined {
@@ -272,6 +338,9 @@ function blockedEmergency(message: string): DraftOutput {
     ok: true,
     result_type: "blocked_emergency",
     draft: null,
+    official_routes: [],
+    legal_context: [],
+    privacy_redactions: [],
     share: {
       neighbor_text: "",
       private_note: "긴급하거나 즉시 위험한 상황은 초안 생성 대신 공식 긴급 채널 직접 연락이 우선입니다."
@@ -303,6 +372,15 @@ function failure(resultType: DraftOutput["result_type"], code: string, message: 
     ok: false,
     result_type: resultType,
     draft: null,
+    official_routes: [],
+    legal_context: buildLegalContext({ hasPrivacyRisk: resultType === "out_of_scope" }),
+    privacy_redactions:
+      resultType === "out_of_scope"
+        ? [
+            "정확한 주소·호수, 전화번호, 현관 비밀번호, 혼자 있다는 정보는 공개글에 넣지 마세요.",
+            "개인 도움 요청은 자동 게시·매칭·연락 대행 없이 별도 안전 설계가 필요합니다."
+          ]
+        : [],
     share: { neighbor_text: "", private_note: "자동 발송되지 않습니다." },
     safety: {
       pii_detected: false,

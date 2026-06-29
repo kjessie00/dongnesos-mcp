@@ -134,12 +134,28 @@ export interface SourceBasis {
   needs_official_verification: boolean;
 }
 
+export interface OfficialRoute {
+  priority: number;
+  label: string;
+  url: string | null;
+  when: string;
+  source_id: string;
+}
+
+export interface LegalContext {
+  summary: string;
+  source_id: string;
+  source_url: string;
+}
+
 export interface ActionCard {
   headline: string;
   official_domain: string;
   next_action: string;
   evidence_now: string[];
   do_not_share: string[];
+  official_routes: OfficialRoute[];
+  legal_context: LegalContext[];
   source_summary: string;
   verification_note: string;
 }
@@ -261,6 +277,9 @@ export interface DraftOutput {
     evidence_checklist: string[];
     placeholders_to_fill: string[];
   };
+  official_routes: OfficialRoute[];
+  legal_context: LegalContext[];
+  privacy_redactions: string[];
   share: {
     neighbor_text: string;
     private_note: string;

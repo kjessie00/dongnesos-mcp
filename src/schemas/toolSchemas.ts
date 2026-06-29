@@ -62,6 +62,24 @@ const SourceBasisSchema = z
   })
   .strict();
 
+const OfficialRouteSchema = z
+  .object({
+    priority: z.number().int().positive(),
+    label: z.string(),
+    url: z.string().url().nullable(),
+    when: z.string(),
+    source_id: z.string()
+  })
+  .strict();
+
+const LegalContextSchema = z
+  .object({
+    summary: z.string(),
+    source_id: z.string(),
+    source_url: z.string().url()
+  })
+  .strict();
+
 const ActionCardSchema = z
   .object({
     headline: z.string(),
@@ -69,6 +87,8 @@ const ActionCardSchema = z
     next_action: z.string(),
     evidence_now: z.array(z.string()),
     do_not_share: z.array(z.string()),
+    official_routes: z.array(OfficialRouteSchema),
+    legal_context: z.array(LegalContextSchema),
     source_summary: z.string(),
     verification_note: z.string()
   })
@@ -222,6 +242,9 @@ export const DraftOutputSchema = z
       })
       .strict()
       .nullable(),
+    official_routes: z.array(OfficialRouteSchema),
+    legal_context: z.array(LegalContextSchema),
+    privacy_redactions: z.array(z.string()),
     share: z
       .object({
         neighbor_text: z.string(),

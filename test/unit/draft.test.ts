@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { draftCivicReport } from "../../src/core/draft.js";
+import { formatDraftSummary } from "../../src/tools/draft_civic_report.js";
 
 describe("draftCivicReport", () => {
   it("creates a neutral report preparation draft", () => {
@@ -15,8 +16,11 @@ describe("draftCivicReport", () => {
     });
     assert.equal(output.result_type, "draft");
     assert.ok(output.draft?.copy_block.includes("신고 준비용 초안"));
+    assert.match(output.draft?.copy_block ?? "", /^제목:/);
     assert.ok(output.draft?.copy_block.includes("실제 접수는 사용자가 공식 채널에서 직접 진행"));
     assert.equal(output.draft?.copy_block.startsWith(`${output.draft.title}\n\n${output.draft.title}`), false);
+    assert.ok(output.official_routes.some((route) => route.label === "안전신문고"));
+    assert.ok(output.official_routes.some((route) => route.label === "국민신문고 일반민원"));
   });
 
   it("blocks emergency drafts", () => {
@@ -40,9 +44,26 @@ describe("draftCivicReport", () => {
     });
     assert.equal(output.result_type, "draft");
     assert.equal(output.safety.pii_detected, true);
-    assert.ok(!output.draft?.copy_block.includes("12가3456"));
+    assert.ok(output.draft?.copy_block.includes("12가3456"));
+    assert.ok(!output.draft?.copy_block.includes("확인이 필요한 생활불편 상황이 관찰되었습니다 계속"));
+    assert.ok(!output.draft?.copy_block.includes("검토주세요"));
+    assert.ok(!output.share.neighbor_text.includes("12가3456"));
+    assert.ok(output.privacy_redactions.some((item) => item.includes("차량번호")));
     assert.ok(!output.draft?.copy_block.includes("처벌해"));
     assert.ok(!output.draft?.copy_block.includes("불법 확정"));
+  });
+
+  it("keeps illegal-parking category wording readable while removing legal assertions", () => {
+    const output = draftCivicReport({
+      issue_code: "ILLEGAL_PARKING_SAFETY",
+      facts: {
+        what: "12가3456 차량이 불법주정차로 계속 서 있습니다.",
+        where_general: "OO초 앞 횡단보도 입구"
+      }
+    });
+    assert.equal(output.result_type, "draft");
+    assert.ok(output.draft?.copy_block.includes("불법주정차"));
+    assert.ok(!output.draft?.copy_block.includes("확인이 필요한 생활불편 상황이 관찰되었습니다 계속"));
   });
 
   it("does not block a streetlight draft for general crime anxiety in impact", () => {
@@ -115,7 +136,7 @@ describe("draftCivicReport", () => {
     assert.ok(!output.draft.title.includes("공개하지"));
     assert.ok(!output.share.neighbor_text.includes("정확한 주소"));
     assert.ok(!output.share.neighbor_text.includes("공개하지"));
-    assert.match(output.draft.copy_block, /^\[보도블록 파손\] 보도블록 파손 점검 요청/);
+    assert.match(output.draft.copy_block, /^제목: \[보도블록 파손\] 보도블록 파손 점검 요청/);
   });
 
   it("accepts PlayMCP category hints for draft issue_code", () => {
@@ -168,5 +189,32 @@ describe("draftCivicReport", () => {
     assert.equal(output.draft, null);
     assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
     assert.match(output.errors[0]?.message ?? "", /로드맵/);
+    assert.ok(output.privacy_redactions.some((item) => item.includes("정확한 주소")));
+  });
+
+  it("formats a park broken-glass report with copy-ready text and direct official links", () => {
+    const output = draftCivicReport({
+      issue_code: "PARK_FACILITY_DAMAGE",
+      facts: {
+        what: "동네 공원 벤치 옆에 깨진 유리조각이 흩어져 있습니다.",
+        where_general: "동네 공원 벤치 옆",
+        impact: "아이들이 지나다니는 구역이라 베임 사고 위험이 있습니다.",
+        photo_note: "사진 1장을 첨부할 예정입니다."
+      },
+      include_neighbor_share_text: true,
+      language: "ko"
+    });
+    const summary = formatDraftSummary(output);
+
+    assert.equal(output.result_type, "draft");
+    assert.doesNotMatch(summary, /분류되었습니다|분류됩니다/);
+    assert.match(summary, /복사해서 붙여넣을 신고문/);
+    assert.match(summary, /제목:/);
+    assert.match(summary, /동네 공원 벤치 옆/);
+    assert.match(summary, /사진 1장/);
+    assert.match(summary, /안전신문고/);
+    assert.match(summary, /국민신문고/);
+    assert.match(summary, /지역\/구청 공식 생활민원 페이지 직접 선택/);
+    assert.match(summary, /https:\/\/www\.mois\.go\.kr/);
   });
 });

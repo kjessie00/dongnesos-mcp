@@ -1,6 +1,7 @@
 import { sourceCardsData } from "../data/loadData.js";
 import type { ActionCard, ChannelFamily, SourceBasis, SourceBasisCard, SourceCard, TaxonomyItem } from "../types.js";
 import { normalizeText } from "./normalize.js";
+import { buildLegalContext, buildOfficialRoutes } from "./officialGuidance.js";
 
 interface GroundingInput {
   item?: TaxonomyItem;
@@ -66,6 +67,8 @@ export function emptySourceGrounding(reason: string): SourceGrounding {
       next_action: "무엇이, 어디서, 어떤 위험인지 한 줄 더 보강한 뒤 다시 분류하세요.",
       evidence_now: [],
       do_not_share: ["실명", "연락처", "정밀 위치", "차량번호", "아동 얼굴"],
+      official_routes: [],
+      legal_context: [],
       source_summary: "현재 입력만으로 매칭할 공식 source card를 좁히지 않았습니다.",
       verification_note: "동네SOS는 실제 접수·전송을 하지 않으며, 최종 접수처와 요구 증거는 공식 채널에서 확인해야 합니다."
     }
@@ -155,15 +158,24 @@ function buildActionCard(input: GroundingInput, sourceBasis: SourceBasis): Actio
   ]).slice(0, 5);
   const sourceNames = sourceBasis.matched_cards.map((card) => card.source_name).slice(0, 3);
   const issueLabel = input.item?.label_ko ?? "생활불편";
+  const isIllegalParking =
+    input.item?.code === "ILLEGAL_PARKING_SAFETY" ||
+    input.item?.code === "SCHOOL_ZONE_SAFETY" ||
+    parkingSignalPattern.test(normalizeText(`${input.originalText} ${input.normalizedSafeText}`));
 
   return {
     headline: `${issueLabel}: 공식 근거 기반 다음 행동`,
     official_domain: officialDomain,
     next_action: input.item
-      ? `${officialDomain} 계열 접수 전 확인 항목: ${evidenceNow.slice(0, 3).join(", ")}. 공개 공유용 문구는 식별정보를 뺀 별도 문장으로 작성하세요.`
+      ? `먼저 공식 경로를 고르고, 접수 전 ${evidenceNow.slice(0, 3).join(", ")}를 준비하세요. 공개 공유용 문구는 식별정보를 뺀 별도 문장으로 작성하세요.`
       : "공식 채널에 넣을 수 있는 사실관계와 공개하면 안 되는 정보를 먼저 분리하세요.",
     evidence_now: evidenceNow,
     do_not_share: doNotShare.length ? doNotShare : ["실명", "연락처", "정밀 위치", "차량번호", "아동 얼굴"],
+    official_routes: buildOfficialRoutes(input.channelFamily),
+    legal_context: buildLegalContext({
+      hasPrivacyRisk: privacySignalPattern.test(`${input.originalText} ${input.normalizedSafeText}`) || input.piiDetected,
+      isIllegalParking
+    }),
     source_summary: sourceNames.length ? `매칭된 공식 자료: ${sourceNames.join(" / ")}` : "아직 매칭된 공식 자료가 없습니다.",
     verification_note: sourceBasis.needs_official_verification
       ? "지역·접수 유형별 세부 요건은 달라질 수 있으므로 최종 접수 전 공식 채널에서 확인해야 합니다."

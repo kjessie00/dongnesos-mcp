@@ -1,7 +1,6 @@
 import { channelsData, safetyRules, taxonomyData } from "../data/loadData.js";
 import type { ChannelFamily, ClassificationOutput, ClassifyInput, ResultType, SosError, TaxonomyItem } from "../types.js";
 import { detectEmergency } from "./emergency.js";
-import { issueLooksLike } from "./korean.js";
 import { maskPii } from "./pii.js";
 import { neutralizeForbiddenClaims } from "./neutralize.js";
 import { clamp, normalizeText } from "./normalize.js";
@@ -98,8 +97,8 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
     best.item.priority === "quick"
       ? "빠른 접수 준비를 권장하지만 긴급 출동을 대신 안내할 상황은 아닙니다."
       : best.item.priority === "low"
-        ? "일반 생활불편으로 분류됩니다. 세부 접수처는 확인이 필요합니다."
-        : "비긴급 생활불편으로 분류됩니다. 공식 채널에서 세부 접수처를 확인해 주세요.";
+        ? "일반 생활불편 신고 준비가 가능합니다. 세부 접수처는 확인이 필요합니다."
+        : "비긴급 생활불편 신고 준비가 가능합니다. 공식 채널에서 세부 접수처를 확인해 주세요.";
   const sourceGrounding = buildSourceGrounding({
     item: best.item,
     originalText: description,
@@ -150,7 +149,7 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
       reason: "비긴급 생활불편으로 초안 생성 가능"
     },
     user_messages: {
-      summary: `${issueLooksLike(best.item.label_ko)}. 준비할 정보: ${best.item.evidence_required.join(", ")}.`,
+      summary: `공식 신고 준비가 가능합니다. 준비할 정보: ${best.item.evidence_required.join(", ")}.`,
       next_action: "draft_civic_report를 호출해 복붙용 초안을 만들 수 있습니다.",
       clarifying_question: null
     },

@@ -27,6 +27,7 @@ describe("tool output schemas", () => {
       }
     });
     assert.doesNotThrow(() => DraftOutputSchema.parse(output));
+    assert.ok(output.official_routes.length > 0);
   });
 
   it("accepts blocked emergency draft output", () => {
