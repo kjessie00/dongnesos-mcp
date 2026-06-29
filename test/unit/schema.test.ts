@@ -9,6 +9,8 @@ describe("tool output schemas", () => {
   it("accepts normal classification output", () => {
     const output = classifyCivicIssue({ description: "집 앞 보도블록이 깨져서 유모차가 걸려요." });
     assert.doesNotThrow(() => ClassificationOutputSchema.parse(output));
+    assert.ok(output.source_basis.source_card_count > 0);
+    assert.ok(output.action_card.next_action.length > 0);
   });
 
   it("accepts emergency classification output", () => {

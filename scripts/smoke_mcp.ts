@@ -12,6 +12,8 @@ assert.equal(classification.ok, true);
 assert.equal(classification.result_type, "classification");
 assert.equal(classification.issue.code, "ROAD_SIDEWALK_DAMAGE");
 assert.equal(classification.draft_policy.can_draft, true);
+assert.ok(classification.source_basis.source_card_count >= 13);
+assert.ok(classification.action_card.next_action.length > 0);
 
 const draft = draftCivicReport({
   issue_code: classification.issue.code,

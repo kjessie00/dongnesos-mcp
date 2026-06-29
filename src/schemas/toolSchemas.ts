@@ -38,6 +38,42 @@ const PresentationMockSchema = z
   })
   .strict();
 
+const SourceBasisCardSchema = z
+  .object({
+    source_id: z.string(),
+    source_name: z.string(),
+    publisher: z.string(),
+    source_url: z.string().url(),
+    official_domain: z.string(),
+    last_verified: z.string(),
+    why_relevant: z.string(),
+    evidence_points: z.array(z.string()),
+    privacy_points: z.array(z.string()),
+    limitations: z.array(z.string())
+  })
+  .strict();
+
+const SourceBasisSchema = z
+  .object({
+    matched_cards: z.array(SourceBasisCardSchema),
+    source_card_count: z.number().int().nonnegative(),
+    source_strategy: z.string(),
+    needs_official_verification: z.boolean()
+  })
+  .strict();
+
+const ActionCardSchema = z
+  .object({
+    headline: z.string(),
+    official_domain: z.string(),
+    next_action: z.string(),
+    evidence_now: z.array(z.string()),
+    do_not_share: z.array(z.string()),
+    source_summary: z.string(),
+    verification_note: z.string()
+  })
+  .strict();
+
 export const ClassifyInputSchema = z
   .object({
     description: z.string().min(2).max(1500),
@@ -112,6 +148,8 @@ export const ClassificationOutputSchema = z
         avoid: z.array(z.string())
       })
       .strict(),
+    source_basis: SourceBasisSchema,
+    action_card: ActionCardSchema,
     safety: z
       .object({
         pii_detected: z.boolean(),

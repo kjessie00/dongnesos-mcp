@@ -1,5 +1,6 @@
 import type { ClassifyInput, ClassificationOutput } from "../types.js";
 import { classifyCivicIssue } from "../core/classify.js";
+import { issueLooksLike } from "../core/korean.js";
 
 export function runClassifyCivicIssue(input: ClassifyInput): ClassificationOutput {
   return classifyCivicIssue(input);
@@ -16,8 +17,11 @@ export function formatClassifySummary(output: ClassificationOutput): string {
     return `${output.user_messages.summary} ${output.draft_policy.reason}`;
   }
   return [
-    `${output.issue.label_ko}으로 보입니다.`,
-    `준비할 것: ${output.evidence.required.join(", ")}.`,
+    `${issueLooksLike(output.issue.label_ko)}.`,
+    `공식 근거: ${output.action_card.source_summary}.`,
+    `지금 할 것: ${output.action_card.next_action}`,
+    `준비할 것: ${output.action_card.evidence_now.join(", ")}.`,
+    `공개 금지: ${output.action_card.do_not_share.join(", ")}.`,
     `확인 채널: ${output.routing.channel_candidates.map((candidate) => candidate.label).join(" / ")}.`,
     "동네SOS는 신고 준비 도구이며 실제 접수·전송은 하지 않습니다."
   ].join(" ");

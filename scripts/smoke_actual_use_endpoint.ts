@@ -208,6 +208,34 @@ try {
     description: "당근에서처럼 병원 동행 도와줄 사람을 동네에서 찾고 싶어요.",
     language: "ko"
   });
+
+  const classifyVehiclePrivacy = await callTool(client, "classify_civic_issue", {
+    description: "OO초 앞 횡단보도 입구에 12가3456 차량이 불법주정차로 계속 서 있어요. 사진엔 아이들 얼굴도 보여서 동네방에 올려도 될지 모르겠어요.",
+    language: "ko"
+  });
+  const sourceBasis = asRecord(classifyVehiclePrivacy.source_basis);
+  const actionCard = asRecord(classifyVehiclePrivacy.action_card);
+  const matchedCards = Array.isArray(sourceBasis.matched_cards) ? sourceBasis.matched_cards.map(asRecord) : [];
+  const evidenceNow = stringArray(actionCard.evidence_now);
+  const doNotShare = stringArray(actionCard.do_not_share);
+  cases.push(
+    buildCase("source-card-vehicle-public-sharing", "vehicle public-sharing risk returns official source-backed action guidance", classifyVehiclePrivacy, [
+      { name: "classification", pass: stringValue(classifyVehiclePrivacy.result_type) === "classification" },
+      { name: "parking_issue", pass: stringValue(asRecord(classifyVehiclePrivacy.issue).code) === "ILLEGAL_PARKING_SAFETY" },
+      { name: "source_count", pass: typeof sourceBasis.source_card_count === "number" && sourceBasis.source_card_count >= 13 },
+      {
+        name: "illegal_parking_card",
+        pass: matchedCards.some((card) => stringValue(card.source_id) === "safetyreport_illegal_parking_basic")
+      },
+      {
+        name: "vehicle_privacy_card",
+        pass: matchedCards.some((card) => stringValue(card.source_id) === "pipc_vehicle_plate_personal_info")
+      },
+      { name: "evidence_guidance", pass: evidenceNow.some((item) => /사진|차량번호|촬영/.test(item)) },
+      { name: "public_privacy_guidance", pass: doNotShare.some((item) => /차량번호|아동|얼굴/.test(item)) }
+    ])
+  );
+
   cases.push(
     buildCase("purpose-neighbor-help-not-implemented", "personal help request is not forced into a civic draft", classifyNeighborHelp, [
       { name: "no_civic_draft", pass: stringValue(classifyNeighborHelp.result_type) !== "draft" },

@@ -23,6 +23,8 @@ interface SmokeEvidence {
     result_type?: string;
     issue_code?: string;
     can_draft?: boolean;
+    source_card_count?: number;
+    has_action_card?: boolean;
   };
   draft?: {
     result_type?: string;
@@ -102,15 +104,24 @@ try {
     result_type?: string;
     issue?: { code?: string };
     draft_policy?: { can_draft?: boolean };
+    source_basis?: { source_card_count?: number; matched_cards?: unknown[] };
+    action_card?: { next_action?: string; source_summary?: string };
   };
   evidence.classify = {
     result_type: classificationContent.result_type,
     issue_code: classificationContent.issue?.code,
-    can_draft: classificationContent.draft_policy?.can_draft
+    can_draft: classificationContent.draft_policy?.can_draft,
+    source_card_count: classificationContent.source_basis?.source_card_count,
+    has_action_card:
+      typeof classificationContent.action_card?.next_action === "string" &&
+      classificationContent.action_card.next_action.length > 0 &&
+      typeof classificationContent.action_card?.source_summary === "string"
   };
   assert.equal(evidence.classify.result_type, "classification");
   assert.equal(evidence.classify.issue_code, "ROAD_SIDEWALK_DAMAGE");
   assert.equal(evidence.classify.can_draft, true);
+  assert.ok((evidence.classify.source_card_count ?? 0) >= 13);
+  assert.equal(evidence.classify.has_action_card, true);
 
   const draft = await client.callTool({
     name: "draft_civic_report",

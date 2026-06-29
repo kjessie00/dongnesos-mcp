@@ -171,6 +171,24 @@ The user should see only the useful output:
 
 The source card remains available as evidence for reviewers and debugging.
 
+### Implemented MVP Contract
+
+As of the source-card runtime upgrade, this design is represented in the MCP
+output instead of remaining only as documentation:
+
+- `data/source_cards.json` stores the curated official corpus.
+- `src/core/sourceCards.ts` matches cards by taxonomy code, user keywords, and
+  privacy-risk signals.
+- `classify_civic_issue.source_basis` returns the matched official cards,
+  source URLs, verification dates, evidence points, privacy points, limitations,
+  and `needs_official_verification`.
+- `classify_civic_issue.action_card` returns the user-facing next action:
+  official domain, evidence to capture now, information not to put in public
+  sharing, source summary, and verification note.
+- The classification presentation mock includes official basis, action items,
+  and public-sharing limits so a PlayMCP client LLM can answer from structured
+  evidence rather than generic civic-report advice.
+
 The first local corpus contains official and local-government cards for:
 
 - 행정안전부 Safety e-Report official domains
@@ -391,13 +409,17 @@ not:
 신고문 생성기
 ```
 
-### V2 Output Upgrade
+### MVP Output Contract And V2 Upgrade
 
-Add lane-oriented structured fields while keeping backward compatibility:
+Already implemented in `classify_civic_issue`:
 
-- `official_domain`
-- `internal_privacy_profile`
+- `source_basis`
 - `action_card`
+
+Next lane-oriented structured fields to add while keeping backward
+compatibility:
+
+- `internal_privacy_profile`
 - `evidence_readiness`
 - `official_report_draft`
 - `public_neighbor_share_draft`

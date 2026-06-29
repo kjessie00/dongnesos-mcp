@@ -1,10 +1,12 @@
 import { channelsData, safetyRules, taxonomyData } from "../data/loadData.js";
 import type { ChannelFamily, ClassificationOutput, ClassifyInput, ResultType, SosError, TaxonomyItem } from "../types.js";
 import { detectEmergency } from "./emergency.js";
+import { issueLooksLike } from "./korean.js";
 import { maskPii } from "./pii.js";
 import { neutralizeForbiddenClaims } from "./neutralize.js";
 import { clamp, normalizeText } from "./normalize.js";
 import { classificationCard } from "./presentationMock.js";
+import { buildSourceGrounding, emptySourceGrounding } from "./sourceCards.js";
 
 const confidenceThreshold = 0.45;
 
@@ -98,6 +100,13 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
       : best.item.priority === "low"
         ? "일반 생활불편으로 분류됩니다. 세부 접수처는 확인이 필요합니다."
         : "비긴급 생활불편으로 분류됩니다. 공식 채널에서 세부 접수처를 확인해 주세요.";
+  const sourceGrounding = buildSourceGrounding({
+    item: best.item,
+    originalText: description,
+    normalizedSafeText: neutralized.text,
+    channelFamily: best.item.channel_family,
+    piiDetected: masked.detected
+  });
 
   const output: ClassificationOutput = {
     ok: true,
@@ -127,6 +136,8 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
       optional: best.item.evidence_optional,
       avoid: best.item.evidence_avoid
     },
+    source_basis: sourceGrounding.source_basis,
+    action_card: sourceGrounding.action_card,
     safety: {
       pii_detected: masked.detected,
       masked_description: neutralized.text,
@@ -139,7 +150,7 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
       reason: "비긴급 생활불편으로 초안 생성 가능"
     },
     user_messages: {
-      summary: `${best.item.label_ko}으로 보입니다. 준비할 정보: ${best.item.evidence_required.join(", ")}.`,
+      summary: `${issueLooksLike(best.item.label_ko)}. 준비할 정보: ${best.item.evidence_required.join(", ")}.`,
       next_action: "draft_civic_report를 호출해 복붙용 초안을 만들 수 있습니다.",
       clarifying_question: null
     },
@@ -172,6 +183,16 @@ function scoreTaxonomy(text: string, categoryHint?: string): Score[] {
       }
       if (categoryHint && categoryHint !== "unknown" && categoryMatches(item, categoryHint)) {
         score += 1.5;
+      }
+      if (
+        item.code === "ILLEGAL_PARKING_SAFETY" &&
+        /(불법\s*주정차|주정차|주차|차량|차가|차량정보 비공개|번호판)/.test(normalized) &&
+        /(횡단보도|소화전|어린이보호구역|스쿨존|인도|통행)/.test(normalized)
+      ) {
+        score += 4;
+      }
+      if (item.code === "CROSSWALK_FADED" && /(불법\s*주정차|주정차|주차|차량|차가|번호판)/.test(normalized)) {
+        score -= 2;
       }
       return { item, score, matches };
     })
@@ -220,6 +241,16 @@ function routingFor(channelFamily: ChannelFamily): ClassificationOutput["routing
 
 function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmergency>>, maskedDescription: string, piiDetected: boolean): ClassificationOutput {
   const routing = routingFor("EMERGENCY_DIRECT");
+  const sourceGrounding = emptySourceGrounding("긴급 또는 즉시 위험 가능성이 있어 생활불편 source card 매칭보다 공식 긴급 채널 직접 연락을 우선합니다.");
+  sourceGrounding.action_card = {
+    ...sourceGrounding.action_card,
+    headline: `${emergency.label_ko}: 공식 긴급 채널 직접 연락`,
+    official_domain: "공식 긴급 채널",
+    next_action: "안전한 장소로 이동한 뒤 112/119 등 해당 공식 긴급 채널에 직접 연락하세요.",
+    evidence_now: ["안전한 장소에서 상황 확인", "위험 지역에 머무르지 않기"],
+    do_not_share: ["사진 촬영을 위해 위험 지역에 머무르기", "민원 초안 작성으로 대응 지연"],
+    source_summary: "긴급 가능성에서는 신고 준비보다 공식 긴급 채널 직접 연락이 우선입니다."
+  };
   const output: ClassificationOutput = {
     ok: true,
     result_type: "emergency_redirect",
@@ -237,6 +268,8 @@ function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmer
       optional: [],
       avoid: ["현장 접근", "사진 촬영을 위해 위험 지역에 머무르기", "민원 초안 작성으로 대응 지연"]
     },
+    source_basis: sourceGrounding.source_basis,
+    action_card: sourceGrounding.action_card,
     safety: {
       pii_detected: piiDetected,
       masked_description: maskedDescription,
@@ -271,6 +304,7 @@ function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmer
 
 function makeUnclearOutput(text: string, piiDetected: boolean, removed: string[], errors: SosError[]): ClassificationOutput {
   const routing = routingFor("NONE");
+  const sourceGrounding = emptySourceGrounding("입력만으로 생활불편 유형을 확정하기 어려워 공식 source card를 좁히지 않았습니다.");
   const output: ClassificationOutput = {
     ok: true,
     result_type: "needs_clarification",
@@ -280,6 +314,8 @@ function makeUnclearOutput(text: string, piiDetected: boolean, removed: string[]
     priority: { level: "normal", is_emergency: false, explanation: "입력만으로 유형을 확정하기 어렵습니다." },
     routing,
     evidence: { required: [], optional: [], avoid: ["실명", "연락처", "차량번호", "좌표", "처벌 요구"] },
+    source_basis: sourceGrounding.source_basis,
+    action_card: sourceGrounding.action_card,
     safety: {
       pii_detected: piiDetected,
       masked_description: text,
@@ -368,6 +404,7 @@ function makeNeighborHelpOutOfScopeOutput(text: string, piiDetected: boolean, re
 
 function baseFailure(code: string, message: string, resultType: ResultType, issueCode: string, label: string): ClassificationOutput {
   const routing = routingFor("NONE");
+  const sourceGrounding = emptySourceGrounding("입력 검증 단계에서 중단되어 공식 source card를 매칭하지 않았습니다.");
   return {
     ok: false,
     result_type: resultType,
@@ -377,6 +414,8 @@ function baseFailure(code: string, message: string, resultType: ResultType, issu
     priority: { level: "normal", is_emergency: false, explanation: message },
     routing,
     evidence: { required: [], optional: [], avoid: [] },
+    source_basis: sourceGrounding.source_basis,
+    action_card: sourceGrounding.action_card,
     safety: {
       pii_detected: false,
       masked_description: "",

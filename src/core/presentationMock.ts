@@ -1,12 +1,30 @@
-import type { ClassificationOutput, DraftOutput, PresentationMock } from "../types.js";
+import type { ActionCard, ClassificationOutput, DraftOutput, PresentationMock, SourceBasis } from "../types.js";
+import { issueLooksLike } from "./korean.js";
 
-export function classificationCard(output: Pick<ClassificationOutput, "issue" | "priority" | "routing" | "evidence" | "draft_policy">): PresentationMock {
+export function classificationCard(
+  output: Pick<ClassificationOutput, "issue" | "priority" | "routing" | "evidence" | "draft_policy"> & {
+    source_basis?: SourceBasis;
+    action_card?: ActionCard;
+  }
+): PresentationMock {
+  const officialEvidence = output.action_card
+    ? [
+        output.action_card.official_domain,
+        output.action_card.source_summary,
+        output.action_card.verification_note
+      ]
+    : [];
+  const nextAction = output.action_card
+    ? [output.action_card.next_action, ...output.action_card.evidence_now.slice(0, 3).map((item) => `확인: ${item}`)]
+    : output.evidence.required;
+  const privacyItems = output.action_card?.do_not_share.length ? output.action_card.do_not_share : output.evidence.avoid;
+
   return {
     version: "0.1",
     card_type: output.priority.is_emergency ? "safety_redirect_card" : "classification_card",
     headline: output.priority.is_emergency
       ? `${output.issue.label_ko}: 공식 긴급 채널에 직접 연락하세요`
-      : `${output.issue.label_ko}으로 보입니다`,
+      : issueLooksLike(output.issue.label_ko),
     badges: [
       output.issue.group,
       output.priority.level === "quick" ? "빠른 접수 준비 권장" : output.priority.level === "low" ? "낮은 우선도" : "신고 준비용",
@@ -18,12 +36,16 @@ export function classificationCard(output: Pick<ClassificationOutput, "issue" | 
         items: output.routing.channel_candidates.map((candidate) => candidate.label)
       },
       {
-        title: "준비할 것",
-        items: output.evidence.required
+        title: "공식 근거",
+        items: officialEvidence
       },
       {
-        title: "주의할 것",
-        items: output.evidence.avoid
+        title: "지금 할 일",
+        items: nextAction
+      },
+      {
+        title: "공개하지 말 것",
+        items: privacyItems
       }
     ],
     actions: output.draft_policy.can_draft

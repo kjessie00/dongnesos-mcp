@@ -18,7 +18,8 @@ gives the next safe action.
 
 - `classify_civic_issue`: classifies the issue into the fixed 28-item taxonomy,
   routes it to a channel family, and returns the canonical Pro Chat output
-  fields: `result_type`, `priority`, `routing`, `draft_policy`, and `errors`.
+  fields: `result_type`, `priority`, `routing`, `source_basis`,
+  `action_card`, `draft_policy`, and `errors`.
 - `draft_civic_report`: creates a neutral report preparation draft for
   non-emergency cases only.
 
@@ -110,9 +111,11 @@ EVIDENCE_OUT=deploy/playmcp/evidence/remote-smoke.json \
 npm run smoke:endpoint
 ```
 
-The current acceptance target is at least 61 passing tests plus the HTTP MCP
-smoke covering `tools/list` schemas, `classify_civic_issue`, and
-`draft_civic_report`.
+The current acceptance target is 72 passing tests plus the HTTP MCP smoke
+covering `tools/list` schemas, `classify_civic_issue`, and
+`draft_civic_report`. Source-card acceptance validates that
+`classify_civic_issue` returns official source-card matches plus a compact
+action card for evidence capture and public-sharing limits.
 
 For the review narrative and sample cases, see `DEMO_SCRIPT.md`.
 
@@ -122,7 +125,8 @@ design, see `docs/actual-use-and-neighbor-help-design.md`.
 For the product differentiation against ordinary search, see
 `docs/search-vs-dongnesos-service-value-20260625.md`.
 The initial official source-card corpus lives in `data/source_cards.json` and
-is validated by `npm run validate:data`.
+is validated by `npm run validate:data`; runtime matching lives in
+`src/core/sourceCards.ts`.
 
 For owner approval and external deployment stop rules, see
 `deploy/playmcp/owner-approval-packet.md`.

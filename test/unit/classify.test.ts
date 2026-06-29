@@ -57,4 +57,20 @@ describe("classifyCivicIssue", () => {
     assert.match(output.user_messages.summary, /범위/);
     assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
   });
+
+  it("returns source-backed action guidance for vehicle-related public-sharing risk", () => {
+    const output = classifyCivicIssue({
+      description: "OO초 앞 횡단보도 입구에 12가3456 차량이 불법주정차로 계속 서 있어요. 사진엔 아이들 얼굴도 보여서 동네방에 올려도 될지 모르겠어요."
+    });
+
+    assert.equal(output.result_type, "classification");
+    assert.equal(output.issue.code, "ILLEGAL_PARKING_SAFETY");
+    assert.ok(output.source_basis.source_card_count >= 13);
+    assert.ok(output.source_basis.matched_cards.some((card) => card.source_id === "safetyreport_illegal_parking_basic"));
+    assert.ok(output.source_basis.matched_cards.some((card) => card.source_id === "pipc_vehicle_plate_personal_info"));
+    assert.match(output.action_card.official_domain, /안전신문고|불법 주정차/);
+    assert.ok(output.action_card.evidence_now.some((item) => /차량번호|사진|촬영/.test(item)));
+    assert.ok(output.action_card.do_not_share.some((item) => /차량번호|아동|얼굴/.test(item)));
+    assert.ok(!output.safety.masked_description.includes("12가3456"));
+  });
 });

@@ -57,6 +57,7 @@ Pass means:
   `draft_civic_report`.
 - Both tools expose input and output schemas.
 - A normal civic issue can be classified and drafted.
+- `classify_civic_issue` returns `source_basis` and `action_card`.
 - An emergency sample blocks drafting.
 - Emergency PII is masked before being returned.
 
@@ -83,6 +84,8 @@ Pass means the deployed endpoint matches the P1 user-story fixes:
   before returning.
 - Neighbor-help style requests remain out of the current civic-report MVP and
   do not get forced into a civic complaint draft.
+- Vehicle/public-sharing cases return official source-card basis, evidence to
+  capture, and a separate public-sharing caution.
 
 ### 3. Human-in-the-Loop PlayMCP Use
 
@@ -101,10 +104,17 @@ these prompts as if you are an ordinary user:
    - Expected: legal certainty and punishment demands neutralized.
 6. `우리집 101동 1203호 앞에 쓰레기가 계속 쌓여 있어요.`
    - Expected: precise address-like text masked or generalized.
+7. `OO초 앞 횡단보도 입구에 12가3456 차량이 불법주정차로 계속 서 있어요. 사진엔 아이들 얼굴도 보여서 동네방에 올려도 될지 모르겠어요.`
+   - Expected: illegal-parking/safety classification, official source-card
+     basis, photo/evidence guidance, and a clear warning not to put vehicle
+     number or children's faces in public sharing.
 
 Manual pass criteria:
 
 - The user can understand what to do next in under 30 seconds.
+- The answer explains why DongneSOS is better than ordinary search: it returns
+  official basis, evidence checklist, public-sharing limits, and next action in
+  one compact package.
 - The output never claims that DongneSOS submitted anything.
 - The draft is copy/paste-ready but still asks the user to verify the real
   local channel.

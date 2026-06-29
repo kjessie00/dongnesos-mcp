@@ -114,6 +114,36 @@ export interface SourceCardsData {
   cards: SourceCard[];
 }
 
+export interface SourceBasisCard {
+  source_id: string;
+  source_name: string;
+  publisher: string;
+  source_url: string;
+  official_domain: string;
+  last_verified: string;
+  why_relevant: string;
+  evidence_points: string[];
+  privacy_points: string[];
+  limitations: string[];
+}
+
+export interface SourceBasis {
+  matched_cards: SourceBasisCard[];
+  source_card_count: number;
+  source_strategy: string;
+  needs_official_verification: boolean;
+}
+
+export interface ActionCard {
+  headline: string;
+  official_domain: string;
+  next_action: string;
+  evidence_now: string[];
+  do_not_share: string[];
+  source_summary: string;
+  verification_note: string;
+}
+
 export interface ClassifyInput {
   description: string;
   region_hint?: string;
@@ -173,6 +203,8 @@ export interface ClassificationOutput {
     optional: string[];
     avoid: string[];
   };
+  source_basis: SourceBasis;
+  action_card: ActionCard;
   safety: {
     pii_detected: boolean;
     masked_description: string;
