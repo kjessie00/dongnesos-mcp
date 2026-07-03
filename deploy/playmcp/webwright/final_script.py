@@ -32,6 +32,9 @@ DEFAULT_PROMPT = (
 VERIFY_VIEWPORT = {"width": 1280, "height": 1800}
 DEFAULT_LOGIN_VIEWPORT_HEIGHT = 900
 DEFAULT_LOGIN_TIMEOUT_SEC = 600
+KAKAOCLOUD_LOGIN_MARKERS = ["KakaoCloud MCP Hub", "My MCP Servers", "MCP Hub"]
+PLAYMCP_CONSOLE_MARKERS = ["개발자 콘솔", "Developer Console", "Console"]
+PLAYMCP_TOOLBOX_MARKERS = ["도구함", "Toolbox", "PlayMCP Toolbox", "AI 채팅", "내 MCP"]
 
 
 def _workspace_dir() -> Path:
@@ -206,30 +209,80 @@ async def body_text(page: Any) -> str:
         return ""
 
 
+async def page_haystack(page: Any) -> str:
+    try:
+        title = await page.title()
+    except Exception:
+        title = ""
+    return f"{title}\n{await body_text(page)}"
+
+
+async def capture_login_blocker(page: Any, step: int, label: str) -> None:
+    try:
+        await screenshot(page, step, label)
+    except Exception:
+        pass
+
+
 async def require_logged_in(
     page: Any,
-    expected_text: str,
+    expected_text: str | list[str],
     setup_login: bool,
     step: int,
     login_timeout_sec: int = DEFAULT_LOGIN_TIMEOUT_SEC,
 ) -> None:
-    text = await body_text(page)
-    if expected_text in text:
+    expected_texts = [expected_text] if isinstance(expected_text, str) else expected_text
+    haystack = await page_haystack(page)
+    if any(token in haystack for token in expected_texts):
         return
     if setup_login:
-        log_step(step, f"waiting up to {login_timeout_sec}s for manual login until page contains {expected_text!r}")
+        log_step(step, f"waiting up to {login_timeout_sec}s for manual login until page contains one of {expected_texts!r}")
         try:
             await page.wait_for_function(
-                "(needle) => document.body && document.body.innerText.includes(needle)",
-                arg=expected_text,
+                """needles => {
+                    const haystack = `${document.title || ''}\n${document.body ? document.body.innerText : ''}`;
+                    return needles.some(needle => haystack.includes(needle));
+                }""",
+                arg=expected_texts,
                 timeout=login_timeout_sec * 1000,
             )
             return
         except PlaywrightTimeoutError as exc:
+            await capture_login_blocker(page, step, "login_required_timeout")
             raise LoginRequired(f"LOGIN_REQUIRED: login did not complete for {page.url}") from exc
-    if any(token in text for token in ("로그인", "Login", "카카오계정", "PlayMCP에 가입한")):
+    if any(token in haystack for token in ("로그인", "Login", "카카오계정", "PlayMCP에 가입한")):
+        await capture_login_blocker(page, step, "login_required")
         raise LoginRequired(f"LOGIN_REQUIRED: {page.url}")
-    raise LoginRequired(f"LOGIN_REQUIRED_OR_UNEXPECTED_PAGE: expected {expected_text!r} at {page.url}")
+    await capture_login_blocker(page, step, "login_required_unexpected_page")
+    raise LoginRequired(f"LOGIN_REQUIRED_OR_UNEXPECTED_PAGE: expected one of {expected_texts!r} at {page.url}")
+
+
+async def enable_stay_logged_in_if_present(page: Any) -> bool:
+    candidates = [
+        "input[id^='staySignedIn']",
+        "input[name='staySignedIn']",
+        "label#label-staySignedIn",
+        "text=Stay Logged In",
+        "text=로그인 상태 유지",
+    ]
+    for selector in candidates:
+        loc = page.locator(selector).first
+        try:
+            if await loc.count() == 0:
+                continue
+            if not await loc.is_visible(timeout=1000):
+                continue
+            tag = await loc.evaluate("el => el.tagName.toLowerCase()")
+            if tag == "input":
+                checked = await loc.evaluate("el => !!el.checked")
+                if not checked:
+                    await loc.check(force=True)
+                return True
+            await loc.click()
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def brave_executable() -> str | None:
@@ -269,14 +322,24 @@ async def prepare_login(
         )
         await page.goto("https://playmcp.kakaocloud.io/my-mcp", wait_until="domcontentloaded")
         await page.wait_for_timeout(1500)
+        stay_enabled = await enable_stay_logged_in_if_present(page)
+        if stay_enabled:
+            log_step(4, "enabled Kakao Stay Logged In before manual login")
         await screenshot(page, 4, "login_setup_kakaocloud")
-        await require_logged_in(page, "My MCP Servers", True, 4, login_timeout_sec)
+        await require_logged_in(page, KAKAOCLOUD_LOGIN_MARKERS, True, 4, login_timeout_sec)
+        await page.wait_for_timeout(2000)
+        await context.storage_state(path=str(RUN_DIR / "storage_state_after_kakaocloud_login.json"))
         await screenshot(page, 4, "login_setup_kakaocloud_complete")
 
         await page.goto("https://playmcp.kakao.com/toolbox", wait_until="domcontentloaded")
         await page.wait_for_timeout(1500)
+        stay_enabled = await enable_stay_logged_in_if_present(page)
+        if stay_enabled:
+            log_step(4, "enabled Kakao Stay Logged In before manual toolbox login")
         await screenshot(page, 4, "login_setup_playmcp_toolbox")
-        await require_logged_in(page, "Toolbox", True, 4, login_timeout_sec)
+        await require_logged_in(page, PLAYMCP_TOOLBOX_MARKERS, True, 4, login_timeout_sec)
+        await page.wait_for_timeout(2000)
+        await context.storage_state(path=str(RUN_DIR / "storage_state_after_toolbox_login.json"))
         await screenshot(page, 4, "login_setup_playmcp_toolbox_complete")
     finally:
         await context.close()
@@ -286,7 +349,7 @@ async def prepare_login(
 async def verify_kakao_cloud(page: Any, server_name: str, setup_login: bool) -> dict[str, Any]:
     await page.goto("https://playmcp.kakaocloud.io/my-mcp", wait_until="domcontentloaded")
     await page.wait_for_timeout(1500)
-    await require_logged_in(page, "My MCP Servers", setup_login, 4)
+    await require_logged_in(page, KAKAOCLOUD_LOGIN_MARKERS, setup_login, 4)
     text = await body_text(page)
     await screenshot(page, 4, "kakaocloud_mcp_hub")
     status_ok = server_name in text and "Failed" not in text and "실패" not in text
@@ -318,7 +381,7 @@ async def verify_or_update_console(
 ) -> dict[str, Any]:
     await page.goto("https://playmcp.kakao.com/console?tab=draft", wait_until="domcontentloaded")
     await page.wait_for_timeout(2500)
-    await require_logged_in(page, "개발자 콘솔", setup_login, 5)
+    await require_logged_in(page, PLAYMCP_CONSOLE_MARKERS, setup_login, 5)
     text = await body_text(page)
     await screenshot(page, 5, "playmcp_console_draft")
     if mcp_name not in text:
@@ -409,7 +472,7 @@ async def find_composer(page: Any):
 async def verify_toolbox(page: Any, mcp_name: str, prompt: str, setup_login: bool) -> dict[str, Any]:
     await page.goto("https://playmcp.kakao.com/toolbox", wait_until="domcontentloaded")
     await page.wait_for_timeout(3500)
-    await require_logged_in(page, "Toolbox", setup_login, 8)
+    await require_logged_in(page, PLAYMCP_TOOLBOX_MARKERS, setup_login, 8)
     before = await body_text(page)
     if mcp_name not in before:
         log_step(8, f"{mcp_name} not visible before chat; continuing because it may be selected in hidden tools drawer")
@@ -485,6 +548,46 @@ async def run_browser_checks(
         await playwright.stop()
 
 
+async def verify_session_persistence(
+    profile_dir: Path,
+    headless: bool,
+    setup_login: bool,
+    login_viewport_height: int,
+    login_timeout_sec: int,
+) -> dict[str, Any]:
+    if setup_login:
+        await prepare_login(
+            profile_dir,
+            headless=headless,
+            login_viewport_height=login_viewport_height,
+            login_timeout_sec=login_timeout_sec,
+        )
+
+    playwright, context = await open_context(profile_dir, headless=headless, viewport=VERIFY_VIEWPORT)
+    try:
+        page = context.pages[0] if context.pages else await context.new_page()
+        await page.goto("https://playmcp.kakaocloud.io/my-mcp", wait_until="domcontentloaded")
+        await page.wait_for_timeout(2000)
+        await require_logged_in(page, KAKAOCLOUD_LOGIN_MARKERS, False, 11)
+        kc_text = await page_haystack(page)
+        await screenshot(page, 11, "session_reopen_kakaocloud_logged_in")
+
+        await page.goto("https://playmcp.kakao.com/toolbox", wait_until="domcontentloaded")
+        await page.wait_for_timeout(2500)
+        await require_logged_in(page, PLAYMCP_TOOLBOX_MARKERS, False, 12)
+        toolbox_text = await page_haystack(page)
+        await screenshot(page, 12, "session_reopen_toolbox_logged_in")
+
+        return {
+            "kakaocloud_logged_in": any(token in kc_text for token in KAKAOCLOUD_LOGIN_MARKERS),
+            "toolbox_logged_in": any(token in toolbox_text for token in PLAYMCP_TOOLBOX_MARKERS),
+            "session_persisted_after_reopen": True,
+        }
+    finally:
+        await context.close()
+        await playwright.stop()
+
+
 def verify_playmcp_flow(
     endpoint: str = DEFAULT_ENDPOINT,
     server_name: str = "dongnesos-mcp-v7",
@@ -521,7 +624,7 @@ def verify_playmcp_flow(
             Default: "/Users/jessiek/Library/Application Support/BraveSoftware/Brave-Browser/Profile 9".
         refresh_profile_from_brave: If true, rebuild the ignored Webwright browser profile from source_brave_profile_dir before checks.
             Default: false.
-        mode: Which verification surface to run: "api", "browser", or "all".
+        mode: Which verification surface to run: "api", "session", "browser", or "all".
             Default: "all".
         update_console: If true, update the PlayMCP console endpoint field and save. Never clicks review submission controls.
             Default: false.
@@ -543,7 +646,10 @@ def verify_playmcp_flow(
     repo = Path(repo_root).expanduser().resolve()
     profile = Path(profile_dir).expanduser()
     if not profile.is_absolute():
-        profile = (WORKSPACE / profile).resolve()
+        if profile.parts and profile.parts[0] == "deploy":
+            profile = (repo / profile).resolve()
+        else:
+            profile = (WORKSPACE / profile).resolve()
     source_profile = Path(source_brave_profile_dir).expanduser().resolve()
 
     log_line(
@@ -555,12 +661,16 @@ def verify_playmcp_flow(
         f"login_viewport_height={login_viewport_height} login_timeout_sec={login_timeout_sec}"
     )
 
-    result: dict[str, Any] = {"run_dir": str(RUN_DIR), "api": None, "browser": None, "overall_pass": False}
+    result: dict[str, Any] = {"run_dir": str(RUN_DIR), "api": None, "session": None, "browser": None, "overall_pass": False}
     if refresh_profile_from_brave:
         refresh_profile_from_brave_fn = globals()["refresh_profile_from_brave"]
         refresh_profile_from_brave_fn(source_profile, profile)
     if mode in ("api", "all"):
         result["api"] = run_api_checks(endpoint, expected_commit, repo)
+    if mode == "session":
+        result["session"] = asyncio.run(
+            verify_session_persistence(profile, headless, setup_login, login_viewport_height, login_timeout_sec)
+        )
     if mode in ("browser", "all"):
         result["browser"] = asyncio.run(
             run_browser_checks(
@@ -602,7 +712,7 @@ def main() -> int:
         action="store_true",
         help="Rebuild the ignored Webwright browser profile from --source-brave-profile-dir before checks.",
     )
-    parser.add_argument("--mode", choices=("api", "browser", "all"), default="all", help="Verification surface to run.")
+    parser.add_argument("--mode", choices=("api", "session", "browser", "all"), default="all", help="Verification surface to run.")
     parser.add_argument("--update-console", action="store_true", help="Opt in to updating the PlayMCP console endpoint and saving.")
     parser.add_argument("--setup-login", action="store_true", help="Wait for manual login in the Webwright browser profile when needed.")
     parser.add_argument("--headless", action="store_true", help="Run browser checks without a visible window.")

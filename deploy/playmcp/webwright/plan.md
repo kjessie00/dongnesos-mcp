@@ -14,7 +14,7 @@ Automate PlayMCP/KakaoCloud deployment checks and real toolbox answer-quality ve
 | profile_dir | path | persistent browser login profile | `deploy/playmcp/webwright/browser-profile` | ignored local directory |
 | source_brave_profile_dir | path | logged-in Brave profile to copy for Webwright | `/Users/jessiek/Library/Application Support/BraveSoftware/Brave-Browser/Profile 9` | absolute path; copied read-only into ignored profile |
 | refresh_profile_from_brave | bool | copy `source_brave_profile_dir` before checks | `false` | opt-in only |
-| mode | str | which check to run | `all` | `api`, `browser`, or `all` |
+| mode | str | which check to run | `all` | `api`, `session`, `browser`, or `all` |
 | update_console | bool | whether to mutate PlayMCP console endpoint | `false` | opt-in only |
 | setup_login | bool | allow manual login wait in the Webwright browser profile | `false` | opt-in only |
 | headless | bool | run browser without a visible window | `false` | `true` or `false` |
@@ -32,3 +32,4 @@ Automate PlayMCP/KakaoCloud deployment checks and real toolbox answer-quality ve
 - [ ] CP7: Every browser run writes `final_script_log.txt` plus screenshots in `final_runs/run_<id>/`, and login-required states stop with an explicit `LOGIN_REQUIRED` result after `login_timeout_sec` instead of silent success.
 - [ ] CP8: Manual login setup avoids Kakao Account's oversized 1800px vertical-centering layout by using a temporary 1280x900 browser window, then restarts verification with 1280x1800 screenshots.
 - [ ] CP9: Optional Brave profile import copies only into ignored Webwright profile storage and does not mutate the source Brave profile or commit cookies.
+- [x] CP10: Session persistence mode closes the manual-login browser, reopens the same ignored Webwright profile, and captures logged-in KC Hub plus PlayMCP Toolbox evidence.

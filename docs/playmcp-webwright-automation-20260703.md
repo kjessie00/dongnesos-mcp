@@ -62,6 +62,36 @@ Therefore the reliable path is:
 
 The browser profile directory is ignored by git and must not be committed.
 
+## Session Persistence Review
+
+The session persistence mechanism is `chromium.launch_persistent_context(user_data_dir=...)`; exported `storage_state_after_*.json` files are evidence only, not the primary persistence path.
+
+Fixes added after review:
+
+- Login setup enables Kakao `Stay Logged In` when that checkbox is present.
+- Login detection checks page title plus body text.
+- KakaoCloud success markers include `KakaoCloud MCP Hub` and `My MCP Servers`.
+- PlayMCP toolbox success markers include Korean UI text such as `도구함`, plus `Toolbox`, `AI 채팅`, and `내 MCP`.
+- `--mode session` closes the setup browser, reopens the same ignored profile, and verifies both KakaoCloud and toolbox login state.
+
+Verified command:
+
+```bash
+/Users/jessiek/.pyenv/shims/python deploy/playmcp/webwright/final_script.py \
+  --mode session \
+  --profile-dir /Users/jessiek/StudioProjects/dongnesos-mcp/deploy/playmcp/webwright/browser-profile-session-test \
+  --login-viewport-height 900 \
+  --login-timeout-sec 120
+```
+
+Evidence:
+
+- `deploy/playmcp/webwright/final_runs/run_18/result.json`
+- `deploy/playmcp/webwright/final_runs/run_18/screenshots/final_execution_11_session_reopen_kakaocloud_logged_in.png`
+- `deploy/playmcp/webwright/final_runs/run_18/screenshots/final_execution_12_session_reopen_toolbox_logged_in.png`
+
+Result: `session_persisted_after_reopen=true`.
+
 ## Browser Verification Command
 
 Use this once to establish the dedicated Webwright login profile and continue browser verification:
