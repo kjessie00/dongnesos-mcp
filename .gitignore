@@ -3,6 +3,10 @@ dist/
 .agent/
 deploy/playmcp/evidence/
 deploy/playmcp/package/
+deploy/playmcp/webwright/browser-profile*/
+deploy/playmcp/webwright/final_runs/
+deploy/playmcp/webwright/screenshots/
+deploy/playmcp/webwright/__pycache__/
 .env
 .env.*
 npm-debug.log*
