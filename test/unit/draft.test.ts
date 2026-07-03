@@ -190,6 +190,8 @@ describe("draftCivicReport", () => {
     assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
     assert.match(output.errors[0]?.message ?? "", /로드맵/);
     assert.ok(output.privacy_redactions.some((item) => item.includes("정확한 주소")));
+    assert.match(output.answer_markdown, /정확한 주소·호수/);
+    assert.match(output.answer_markdown, /플랫폼 안의 메시지/);
   });
 
   it("formats a park broken-glass report with copy-ready text and direct official links", () => {
@@ -216,5 +218,8 @@ describe("draftCivicReport", () => {
     assert.match(summary, /국민신문고/);
     assert.match(summary, /지역\/구청 공식 생활민원 페이지 직접 선택/);
     assert.match(summary, /https:\/\/www\.mois\.go\.kr/);
+    assert.match(output.answer_markdown, /바로 .*붙여넣을 신고문/);
+    assert.match(output.answer_markdown, /```text/);
+    assert.match(output.answer_markdown, /동네SOS는 신고 준비만 돕고 실제 접수/);
   });
 });

@@ -4,6 +4,7 @@ import { detectEmergency } from "./emergency.js";
 import { maskPii } from "./pii.js";
 import { neutralizeForbiddenClaims } from "./neutralize.js";
 import { clamp, normalizeText } from "./normalize.js";
+import { formatLegalContext, formatOfficialRoutes } from "./officialGuidance.js";
 import { classificationCard } from "./presentationMock.js";
 import { buildSourceGrounding, emptySourceGrounding } from "./sourceCards.js";
 
@@ -110,6 +111,7 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
   const output: ClassificationOutput = {
     ok: true,
     result_type: "classification",
+    answer_markdown: "",
     issue: {
       code: best.item.code,
       label_ko: best.item.label_ko,
@@ -165,7 +167,54 @@ export function classifyCivicIssue(input: ClassifyInput): ClassificationOutput {
     errors
   };
   output.presentation_mock = classificationCard(output);
+  output.answer_markdown = buildClassificationAnswer(output);
   return output;
+}
+
+function buildClassificationAnswer(output: ClassificationOutput): string {
+  if (output.result_type === "emergency_redirect") {
+    return output.safety.emergency_redirect?.message ?? output.user_messages.summary;
+  }
+  if (output.issue.label_ko === "이웃 도움 교류 요청") {
+    return [
+      "이 요청은 현재 동네SOS의 공공시설·환경 신고 준비 범위가 아닙니다.",
+      "다만 공개 글을 쓴다면 개인정보를 이렇게 분리하는 것이 안전합니다.",
+      "",
+      "공개 글에 적어도 되는 것:",
+      "- 대략적인 동네나 건물 밖 기준 위치",
+      "- 필요한 도움의 범위와 예상 소요 시간",
+      "- 무거운 물건인지, 계단 여부처럼 안전에 필요한 일반 정보",
+      "",
+      "공개 글에 적지 말 것:",
+      "- 정확한 주소·동호수·현관 비밀번호",
+      "- 전화번호, 실명, 혼자 있다는 정보",
+      "- 집 내부 사진이나 출입 방법",
+      "",
+      "세부 위치와 시간은 플랫폼 메시지에서만 최소한으로 공유하고, 동네SOS는 자동 매칭·연락·게시를 하지 않습니다."
+    ].join("\n");
+  }
+  if (output.result_type === "out_of_scope") {
+    return [output.user_messages.summary, output.draft_policy.reason, "공공시설·환경 생활불편이면 현장 상태 중심으로 다시 적어주세요."].join("\n");
+  }
+  if (output.result_type === "needs_clarification") {
+    return output.user_messages.clarifying_question ?? output.user_messages.summary;
+  }
+
+  const legalContext = output.action_card.legal_context.length
+    ? `\n\n법적·개인정보 맥락:\n${formatLegalContext(output.action_card.legal_context)}`
+    : "";
+  return [
+    "공식 신고 준비가 가능합니다.",
+    "",
+    "먼저 이용할 공식 경로:",
+    formatOfficialRoutes(output.action_card.official_routes),
+    "",
+    `바로 할 일: ${output.action_card.next_action}`,
+    `준비할 증거: ${output.action_card.evidence_now.join(", ")}.`,
+    `공개 동네방 글에서 빼야 할 정보: ${output.action_card.do_not_share.join(", ")}.${legalContext}`,
+    "복붙용 신고문이 필요하면 draft_civic_report로 초안을 만들면 됩니다.",
+    "동네SOS는 신고 준비만 돕고 실제 접수·전송은 하지 않습니다."
+  ].join("\n");
 }
 
 function scoreTaxonomy(text: string, categoryHint?: string): Score[] {
@@ -253,6 +302,7 @@ function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmer
   const output: ClassificationOutput = {
     ok: true,
     result_type: "emergency_redirect",
+    answer_markdown: "",
     issue: { code: emergency.code, label_ko: emergency.label_ko, group: "긴급" },
     confidence: 1,
     alternatives: [],
@@ -298,6 +348,7 @@ function makeEmergencyOutput(emergency: NonNullable<ReturnType<typeof detectEmer
     errors: []
   };
   output.presentation_mock = classificationCard(output);
+  output.answer_markdown = buildClassificationAnswer(output);
   return output;
 }
 
@@ -307,6 +358,7 @@ function makeUnclearOutput(text: string, piiDetected: boolean, removed: string[]
   const output: ClassificationOutput = {
     ok: true,
     result_type: "needs_clarification",
+    answer_markdown: "",
     issue: { code: "UNCLEAR", label_ko: "명확화 필요", group: "확인 필요" },
     confidence: 0,
     alternatives: [],
@@ -339,6 +391,7 @@ function makeUnclearOutput(text: string, piiDetected: boolean, removed: string[]
     },
     errors
   };
+  output.answer_markdown = buildClassificationAnswer(output);
   return output;
 }
 
@@ -362,6 +415,7 @@ function makeOutOfScopeOutput(text: string, piiDetected: boolean, removed: strin
     actions: [],
     footer_notice: "동네SOS 현재 버전은 생활 공공시설·환경 불편 신고 준비만 지원합니다."
   };
+  output.answer_markdown = buildClassificationAnswer(output);
   return output;
 }
 
@@ -398,6 +452,7 @@ function makeNeighborHelpOutOfScopeOutput(text: string, piiDetected: boolean, re
     actions: [],
     footer_notice: "개인 도움 교류 기능은 별도 안전·개인정보 설계 후에만 추가할 수 있습니다."
   };
+  output.answer_markdown = buildClassificationAnswer(output);
   return output;
 }
 
@@ -407,6 +462,7 @@ function baseFailure(code: string, message: string, resultType: ResultType, issu
   return {
     ok: false,
     result_type: resultType,
+    answer_markdown: message,
     issue: { code: issueCode, label_ko: label, group: "확인 필요" },
     confidence: 0,
     alternatives: [],

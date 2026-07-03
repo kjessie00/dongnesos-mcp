@@ -56,6 +56,9 @@ describe("classifyCivicIssue", () => {
     assert.equal(output.draft_policy.can_draft, false);
     assert.match(output.draft_policy.reason, /로드맵/);
     assert.match(output.user_messages.summary, /범위/);
+    assert.match(output.answer_markdown, /정확한 주소·동호수·현관 비밀번호/);
+    assert.match(output.answer_markdown, /플랫폼 메시지/);
+    assert.match(output.answer_markdown, /자동 매칭·연락·게시를 하지 않습니다/);
     assert.ok(output.errors.some((error) => error.code === "E_NEIGHBOR_HELP_UNSUPPORTED"));
   });
 
@@ -77,6 +80,8 @@ describe("classifyCivicIssue", () => {
     assert.ok(output.action_card.evidence_now.some((item) => /차량번호|사진|촬영/.test(item)));
     assert.ok(output.action_card.do_not_share.some((item) => /차량번호|아동|얼굴/.test(item)));
     assert.ok(!output.safety.masked_description.includes("12가3456"));
+    assert.match(output.answer_markdown, /https:\/\/www\.mois\.go\.kr/);
+    assert.match(output.answer_markdown, /차량번호는 공식 신고용 사실관계/);
   });
 
   it("formats captured PlayMCP classification as action guidance, not classifier jargon", () => {

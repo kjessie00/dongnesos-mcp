@@ -195,6 +195,7 @@ export interface PresentationMock {
 export interface ClassificationOutput {
   ok: boolean;
   result_type: ResultType;
+  answer_markdown: string;
   issue: {
     code: string;
     label_ko: string;
@@ -269,6 +270,7 @@ export interface DraftInput {
 export interface DraftOutput {
   ok: boolean;
   result_type: DraftResultType;
+  answer_markdown: string;
   draft: null | {
     title: string;
     body: string;

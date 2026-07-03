@@ -5,7 +5,7 @@ import { maskPii } from "./pii.js";
 import { neutralizeForbiddenClaims } from "./neutralize.js";
 import { normalizeText } from "./normalize.js";
 import { draftCard } from "./presentationMock.js";
-import { buildLegalContext, buildOfficialRoutes } from "./officialGuidance.js";
+import { buildLegalContext, buildOfficialRoutes, formatLegalContext, formatOfficialRoutes } from "./officialGuidance.js";
 
 const officialVehiclePlatePattern = /\b\d{2,3}\s?[가-힣]\s?\d{4}\b/g;
 
@@ -94,6 +94,7 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
   const output: DraftOutput = {
     ok: true,
     result_type: "draft",
+    answer_markdown: "",
     draft: {
       title,
       body,
@@ -128,7 +129,56 @@ export function draftCivicReport(input: DraftInput): DraftOutput {
     errors
   };
   output.presentation_mock = draftCard(output);
+  output.answer_markdown = buildDraftAnswer(output);
   return output;
+}
+
+function buildDraftAnswer(output: DraftOutput): string {
+  if (output.result_type === "blocked_emergency") {
+    return output.errors[0]?.message ?? "긴급 또는 즉시 위험 가능성이 있어 공식 긴급 채널에 직접 연락해야 합니다.";
+  }
+  if (output.result_type === "out_of_scope") {
+    const privacy = output.privacy_redactions.length ? `\n\n공개 글 안전 기준:\n- ${output.privacy_redactions.join("\n- ")}` : "";
+    const legal = output.legal_context.length ? `\n\n개인정보 맥락:\n${formatLegalContext(output.legal_context)}` : "";
+    return [
+      "현재 동네SOS는 공공시설·환경 생활불편의 공식 신고 준비만 지원합니다.",
+      "개인 간 도움 교류는 자동 매칭·게시·연락 대행을 하지 않습니다.",
+      "공개 글에는 정확한 주소·호수, 전화번호, 현관 비밀번호, 혼자 있다는 정보, 집 내부 사진을 넣지 마세요.",
+      "필요하다면 플랫폼 안의 메시지 기능으로만 세부 위치와 시간을 좁히고, 공개 글에는 대략적인 동네와 도움 범위만 남기세요.",
+      privacy,
+      legal
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (!output.draft) {
+    return output.errors[0]?.message ?? "초안을 만들 수 없습니다.";
+  }
+
+  const shareText = output.share.neighbor_text
+    ? ["", "공개 동네방에 쓸 때:", output.share.neighbor_text, "공개 글에는 차량번호, 아이 얼굴, 정확한 주소·호수, 전화번호를 넣지 마세요."].join("\n")
+    : "";
+  const privacy = output.privacy_redactions.length ? `\n\n사진·개인정보 체크:\n- ${output.privacy_redactions.join("\n- ")}` : "";
+  const legalContext = output.legal_context.length ? `\n\n법적·개인정보 맥락:\n${formatLegalContext(output.legal_context)}` : "";
+
+  return [
+    "다음 순서로 준비하면 됩니다.",
+    "",
+    "1. 공식 접수 경로",
+    formatOfficialRoutes(output.official_routes),
+    "",
+    "2. 바로 복사해서 붙여넣을 신고문",
+    "```text",
+    output.draft.copy_block,
+    "```",
+    shareText,
+    privacy,
+    legalContext,
+    "",
+    "동네SOS는 신고 준비만 돕고 실제 접수·로그인·전송은 하지 않습니다."
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function fillNeighborTemplate(item: TaxonomyItem, where: string): string {
@@ -337,6 +387,7 @@ function blockedEmergency(message: string): DraftOutput {
   const output: DraftOutput = {
     ok: true,
     result_type: "blocked_emergency",
+    answer_markdown: "",
     draft: null,
     official_routes: [],
     legal_context: [],
@@ -364,6 +415,7 @@ function blockedEmergency(message: string): DraftOutput {
     errors: [{ code: "E_EMERGENCY_REDIRECT", severity: "blocking", message }]
   };
   output.presentation_mock = draftCard(output);
+  output.answer_markdown = buildDraftAnswer(output);
   return output;
 }
 
@@ -371,6 +423,7 @@ function failure(resultType: DraftOutput["result_type"], code: string, message: 
   const output: DraftOutput = {
     ok: false,
     result_type: resultType,
+    answer_markdown: "",
     draft: null,
     official_routes: [],
     legal_context: buildLegalContext({ hasPrivacyRisk: resultType === "out_of_scope" }),
@@ -400,5 +453,6 @@ function failure(resultType: DraftOutput["result_type"], code: string, message: 
     },
     errors: [{ code, severity: "blocking", message }]
   };
+  output.answer_markdown = buildDraftAnswer(output);
   return output;
 }

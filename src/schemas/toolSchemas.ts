@@ -120,6 +120,7 @@ export const ClassificationOutputSchema = z
   .object({
     ok: z.boolean(),
     result_type: z.enum(["classification", "emergency_redirect", "needs_clarification", "out_of_scope", "error"]),
+    answer_markdown: z.string(),
     issue: z
       .object({
         code: z.string(),
@@ -231,6 +232,7 @@ export const DraftOutputSchema = z
   .object({
     ok: z.boolean(),
     result_type: z.enum(["draft", "blocked_emergency", "needs_more_facts", "out_of_scope", "error"]),
+    answer_markdown: z.string(),
     draft: z
       .object({
         title: z.string(),
