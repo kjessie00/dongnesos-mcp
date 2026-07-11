@@ -35,6 +35,7 @@ DEFAULT_LOGIN_TIMEOUT_SEC = 600
 KAKAOCLOUD_LOGIN_MARKERS = ["KakaoCloud MCP Hub", "My MCP Servers", "MCP Hub"]
 PLAYMCP_CONSOLE_MARKERS = ["개발자 콘솔", "Developer Console", "Console"]
 PLAYMCP_TOOLBOX_MARKERS = ["도구함", "Toolbox", "PlayMCP Toolbox", "AI 채팅", "내 MCP"]
+CONSOLE_CLICK_BLOCKLIST = ("심사", "심사 요청", "삭제", "전체 공개", "공개 전환", "player", "예선")
 
 
 def _workspace_dir() -> Path:
@@ -87,6 +88,25 @@ def log_step(step: int, message: str) -> None:
 
 def safe_name(value: str) -> str:
     return re.sub(r"[^a-zA-Z0-9가-힣._-]+", "_", value).strip("_")[:80] or "step"
+
+
+async def safe_click(locator: Any, label: str) -> None:
+    """Click a console control only after checking its supplied and resolved labels."""
+    try:
+        resolved = await locator.evaluate(
+            """element => [
+                element.innerText,
+                element.getAttribute('aria-label'),
+                element.getAttribute('title'),
+            ].filter(Boolean).join(' ')"""
+        )
+    except Exception:
+        resolved = ""
+    candidate_label = f"{label} {resolved}".casefold()
+    blocked = next((item for item in CONSOLE_CLICK_BLOCKLIST if item.casefold() in candidate_label), None)
+    if blocked:
+        raise RuntimeError(f"Refusing unsafe PlayMCP console click ({blocked}): {label!r} / {resolved!r}")
+    await locator.click(timeout=10_000)
 
 
 async def screenshot(page: Any, step: int, label: str) -> str:
@@ -376,9 +396,74 @@ async def visible_form_fields(page: Any) -> list[dict[str, Any]]:
             value: e.value || '',
             placeholder: e.getAttribute('placeholder') || '',
             aria: e.getAttribute('aria-label') || '',
+            name: e.getAttribute('name') || '',
+            id: e.id || '',
+            labels: Array.from(e.labels || []).map(label => label.innerText || label.textContent || '').join(' '),
             visible: !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length)
         }))"""
     )
+
+
+def field_metadata(field: dict[str, Any]) -> str:
+    return " ".join(str(field.get(key, "")) for key in ("value", "placeholder", "aria", "name", "id", "labels")).casefold()
+
+
+def load_console_copy() -> tuple[str, list[str]]:
+    copy_path = WORKSPACE.parent / "entry-form-copy.md"
+    copy_text = copy_path.read_text(encoding="utf-8")
+    description_match = re.search(r"## 1\.[^\n]*\n(?P<copy>.*?)(?=\n## 2\.)", copy_text, re.DOTALL)
+    starter_match = re.search(r"## 2\.[^\n]*\n(?P<copy>.*?)(?=\n## 3\.)", copy_text, re.DOTALL)
+    if not description_match or not starter_match:
+        raise RuntimeError(f"PlayMCP entry copy sections were not found in {copy_path}")
+    description = "\n".join(
+        re.sub(r"^> ?", "", line) for line in description_match.group("copy").splitlines() if line.startswith(">") or not line
+    ).strip()
+    starters = re.findall(r"^\d+\.\s+`([^`]+)`$", starter_match.group("copy"), re.MULTILINE)
+    if not description or len(starters) != 4:
+        raise RuntimeError(f"PlayMCP entry copy is incomplete in {copy_path}")
+    return description, starters
+
+
+async def mcp_card_toggle(page: Any, mcp_name: str) -> Any:
+    """Return the expand toggle belonging to the requested MCP card, never a guessed card."""
+    toggles = page.locator("button.btn_fold")
+    count = await toggles.count()
+    matching_indexes: list[int] = []
+    for index in range(count):
+        toggle = toggles.nth(index)
+        in_mcp_card = await toggle.evaluate(
+            """(element, name) => {
+                let current = element;
+                for (let depth = 0; current && depth < 12; depth += 1) {
+                    const text = current.innerText || current.textContent || '';
+                    if (text.includes(name)) return true;
+                    current = current.parentElement || current.getRootNode().host || null;
+                }
+                return false;
+            }""",
+            mcp_name,
+        )
+        if in_mcp_card:
+            matching_indexes.append(index)
+    if len(matching_indexes) != 1:
+        raise RuntimeError(
+            f"PlayMCP console card expand toggle was not uniquely found for {mcp_name!r} "
+            f"({len(matching_indexes)} matching button.btn_fold controls)"
+        )
+    return toggles.nth(matching_indexes[0])
+
+
+async def console_text_button(page: Any, label: str) -> Any:
+    """Find a uniquely labelled console button without relying on accessibility names."""
+    exact_text = page.get_by_text(label, exact=True)
+    button_from_text = exact_text.locator("xpath=ancestor-or-self::button[1]")
+    if await button_from_text.count() == 1:
+        return button_from_text
+
+    exact_button = page.locator("button").filter(has_text=re.compile(rf"^{re.escape(label)}$"))
+    if await exact_button.count() == 1:
+        return exact_button
+    raise RuntimeError(f"PlayMCP console button was not uniquely found: {label!r}")
 
 
 async def verify_or_update_console(
@@ -391,11 +476,20 @@ async def verify_or_update_console(
     await page.goto("https://playmcp.kakao.com/console?tab=draft", wait_until="domcontentloaded")
     await page.wait_for_timeout(2500)
     await require_logged_in(page, PLAYMCP_CONSOLE_MARKERS, setup_login, 5)
-    text = await body_text(page)
     await screenshot(page, 5, "playmcp_console_draft")
-    if mcp_name not in text:
-        raise RuntimeError(f"PlayMCP console did not show MCP name {mcp_name!r}")
+    mcp_locator = page.get_by_text(mcp_name, exact=False).first
+    try:
+        await mcp_locator.wait_for(state="visible", timeout=10_000)
+    except PlaywrightTimeoutError:
+        draft_tab = page.get_by_role("tab", name=re.compile(r"임시 등록된 MCP"))
+        if await draft_tab.count() == 0:
+            draft_tab = page.get_by_role("button", name=re.compile(r"임시 등록된 MCP"))
+        if await draft_tab.count() == 0:
+            raise RuntimeError(f"PlayMCP console did not show MCP name or draft tab for {mcp_name!r}")
+        await safe_click(draft_tab.first, "임시 등록된 MCP")
+        await mcp_locator.wait_for(state="visible", timeout=10_000)
 
+    text = await body_text(page)
     result: dict[str, Any] = {"mcp_visible": True, "endpoint_visible": endpoint in text, "updated": False}
     if not update_console:
         return result
@@ -404,57 +498,110 @@ async def verify_or_update_console(
     if "심사 요청" in forbidden_before:
         log_step(6, "review submission controls detected; update path will avoid them")
 
-    # Open the MCP detail/edit surface with visible text first; this avoids any final submission button.
-    await page.get_by_text(mcp_name, exact=False).first.click(timeout=10_000)
-    await page.wait_for_timeout(1500)
-    for button_name in ("수정", "편집", "정보 수정"):
-        try:
-            await page.get_by_role("button", name=re.compile(button_name)).first.click(timeout=2500)
-            await page.wait_for_timeout(1000)
+    # The card is collapsed by default. Its icon-only button.btn_fold reveals 수정.
+    edit_button = page.locator("button.btn_secondary")
+    if await edit_button.count() != 1:
+        edit_button = await console_text_button(page, "수정")
+    for _ in range(2):
+        if await edit_button.is_visible():
             break
-        except Exception:
-            pass
+        toggle = await mcp_card_toggle(page, mcp_name)
+        await safe_click(toggle, f"{mcp_name} 카드 펼치기")
+        await page.wait_for_timeout(750)
+    if not await edit_button.is_visible():
+        await screenshot(page, 6, "console_card_expand_failed")
+        raise RuntimeError(f"PlayMCP console edit button was not revealed for {mcp_name!r}")
+
+    await safe_click(edit_button, "수정")
+    await page.wait_for_timeout(1500)
 
     fields = await visible_form_fields(page)
+    log_line(f"console edit form fields: {json.dumps(fields, ensure_ascii=False)}")
     endpoint_index = None
     for field in fields:
-        combined = " ".join(str(field.get(key, "")) for key in ("value", "placeholder", "aria"))
-        if "playmcp-endpoint" in combined or "MCP Endpoint" in combined or "/mcp" in combined:
+        combined = field_metadata(field)
+        if field["visible"] and ("mcp endpoint" in combined or "endpoint" in combined or "엔드포인트" in combined):
             endpoint_index = int(field["index"])
             break
+    if endpoint_index is None:
+        for field in fields:
+            combined = field_metadata(field)
+            if field["visible"] and ("playmcp-endpoint" in combined or "/mcp" in combined):
+                endpoint_index = int(field["index"])
+                break
     if endpoint_index is None:
         await screenshot(page, 6, "console_endpoint_field_not_found")
         raise RuntimeError("PlayMCP console endpoint input was not found")
 
-    await page.locator("input, textarea").nth(endpoint_index).fill(endpoint)
+    endpoint_field = page.locator("input, textarea").nth(endpoint_index)
+    endpoint_before = await endpoint_field.input_value()
+    result["endpoint_before"] = endpoint_before
+    log_line(f"console endpoint before update: {endpoint_before}")
+    await screenshot(page, 6, "console_edit_form")
+    await endpoint_field.fill(endpoint)
     await screenshot(page, 6, "console_endpoint_filled")
-    for button_name in ("정보 불러오기", "불러오기"):
-        try:
-            await page.get_by_role("button", name=re.compile(button_name)).first.click(timeout=3000)
-            await page.wait_for_timeout(3000)
-            break
-        except Exception:
-            pass
+    refresh_button = await console_text_button(page, "정보 불러오기")
+    if not await refresh_button.is_visible():
+        raise RuntimeError("PlayMCP console information refresh button was not found")
+    await safe_click(refresh_button, "정보 불러오기")
+    result["metadata_refreshed"] = True
+    await page.wait_for_timeout(3000)
 
-    save_clicked = False
-    for button_name in ("저장하기", "저장", "등록"):
-        buttons = page.get_by_role("button", name=re.compile(button_name))
-        count = await buttons.count()
-        for index in range(count):
-            label = await buttons.nth(index).inner_text()
-            if "심사" in label:
-                continue
-            await buttons.nth(index).click(timeout=3000)
-            save_clicked = True
-            break
-        if save_clicked:
-            break
-    if not save_clicked:
+    description_updated = False
+    starters_updated = False
+    copy_skip_reason = ""
+    try:
+        description, starters = load_console_copy()
+        fields = await visible_form_fields(page)
+        description_fields = [
+            field
+            for field in fields
+            if field["visible"]
+            and field["tag"] == "TEXTAREA"
+            and any(term in field_metadata(field) for term in ("설명", "description", "서비스 소개"))
+        ]
+        if len(description_fields) == 1:
+            await page.locator("input, textarea").nth(int(description_fields[0]["index"])).fill(description)
+            description_updated = True
+        else:
+            copy_skip_reason = f"description field was not uniquely identified ({len(description_fields)} candidates)"
+
+        starter_fields = [
+            field
+            for field in fields
+            if field["visible"]
+            and any(term in field_metadata(field) for term in ("starter", "스타터", "시작 메시지", "추천 메시지"))
+        ]
+        if len(starter_fields) == 4:
+            for field, starter in zip(starter_fields, starters):
+                await page.locator("input, textarea").nth(int(field["index"])).fill(starter)
+            starters_updated = True
+        else:
+            starter_reason = f"starter fields were not uniquely identified ({len(starter_fields)} candidates)"
+            copy_skip_reason = "; ".join(part for part in (copy_skip_reason, starter_reason) if part)
+    except Exception as exc:
+        copy_skip_reason = f"copy update skipped: {exc}"
+        log_line(copy_skip_reason)
+    result["description_updated"] = description_updated
+    result["starters_updated"] = starters_updated
+    if copy_skip_reason:
+        result["copy_update_skipped_reason"] = copy_skip_reason
+
+    save_button = await console_text_button(page, "저장하기")
+    if not await save_button.is_visible():
         raise RuntimeError("PlayMCP console save button was not found")
+    await safe_click(save_button, "저장하기")
     await page.wait_for_timeout(3000)
     await screenshot(page, 7, "console_endpoint_saved")
     result["updated"] = True
-    result["endpoint_visible"] = endpoint in await body_text(page)
+    result["endpoint_saved"] = True
+    saved_fields = await visible_form_fields(page)
+    result["endpoint_visible"] = endpoint in await body_text(page) or any(
+        field["visible"] and field.get("value") == endpoint for field in saved_fields
+    )
+    (RUN_DIR / "console_update_result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     return result
 
 
@@ -549,8 +696,17 @@ async def run_browser_checks(
         results = {
             "kakao_cloud": await verify_kakao_cloud(page, server_name, False),
             "console": await verify_or_update_console(page, mcp_name, endpoint, False, update_console),
-            "toolbox": await verify_toolbox(page, mcp_name, toolbox_prompt, False),
         }
+        # A later answer-quality failure must not hide a completed console save.
+        (RUN_DIR / "console_update_result.json").write_text(
+            json.dumps(results["console"], ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        try:
+            results["toolbox"] = await verify_toolbox(page, mcp_name, toolbox_prompt, False)
+        except Exception as exc:
+            results["toolbox"] = {"pass": False, "error": str(exc)}
+            results["toolbox_error"] = str(exc)
+            log_line(f"toolbox verification failed after console result was captured: {exc}")
         return results
     finally:
         await context.close()
@@ -695,7 +851,7 @@ def verify_playmcp_flow(
                 login_timeout_sec,
             )
         )
-    result["overall_pass"] = True
+    result["overall_pass"] = not bool((result["browser"] or {}).get("toolbox_error"))
     with (RUN_DIR / "result.json").open("w", encoding="utf-8") as handle:
         json.dump(result, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
