@@ -350,12 +350,21 @@ async def verify_kakao_cloud(page: Any, server_name: str, setup_login: bool) -> 
     await page.goto("https://playmcp.kakaocloud.io/my-mcp", wait_until="domcontentloaded")
     await page.wait_for_timeout(1500)
     await require_logged_in(page, KAKAOCLOUD_LOGIN_MARKERS, setup_login, 4)
+    # The KakaoCloud hub renders server cards where innerText cannot see the name
+    # (shadow/normalized text), so use a shadow-aware locator instead of `in text`.
+    server_locator = page.get_by_text(server_name, exact=False)
+    try:
+        await server_locator.first.wait_for(timeout=15_000)
+    except PlaywrightTimeoutError:
+        pass
+    server_visible = await server_locator.count() > 0
     text = await body_text(page)
     await screenshot(page, 4, "kakaocloud_mcp_hub")
-    status_ok = server_name in text and "Failed" not in text and "실패" not in text
+    has_failure = bool(re.search(r"실패\s*[1-9]", text)) or bool(re.search(r"\bFailed\b", text))
+    status_ok = server_visible and not has_failure
     if not status_ok:
         raise RuntimeError(f"KakaoCloud Hub did not show healthy {server_name}")
-    return {"server_visible": server_name in text, "status_ok": status_ok, "url": page.url}
+    return {"server_visible": server_visible, "status_ok": status_ok, "url": page.url}
 
 
 async def visible_form_fields(page: Any) -> list[dict[str, Any]]:
