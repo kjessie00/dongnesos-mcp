@@ -634,6 +634,11 @@ async def verify_toolbox(page: Any, mcp_name: str, prompt: str, setup_login: boo
         log_step(8, f"{mcp_name} not visible before chat; continuing because it may be selected in hidden tools drawer")
     await screenshot(page, 8, "toolbox_before_prompt")
 
+    # The chat composer only renders after opening the AI 채팅 panel.
+    if await page.get_by_role("button", name="AI 채팅").count() > 0:
+        await safe_click(page.get_by_role("button", name="AI 채팅").first, "AI 채팅")
+        await page.wait_for_timeout(4000)
+
     composer = await find_composer(page)
     await composer.click()
     await composer.fill(prompt)
