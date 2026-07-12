@@ -153,6 +153,34 @@ describe("draftCivicReport", () => {
     assert.match(output.draft?.copy_block ?? "", /유모차/);
   });
 
+  it("self-heals an unrecognized issue code from parking facts", () => {
+    const output = draftCivicReport({
+      issue_code: "safety_parking_illegal",
+      facts: {
+        what: "횡단보도 앞에 불법주정차 차량이 계속 서 있어 보행을 방해합니다.",
+        where_general: "OO초 앞 횡단보도 입구"
+      }
+    });
+
+    assert.equal(output.result_type, "draft");
+    assert.ok(output.draft?.copy_block);
+    assert.match(output.draft.copy_block, /^제목:/);
+    assert.equal(output.errors.some((error) => error.code === "E_UNKNOWN_ISSUE_CODE"), false);
+  });
+
+  it("does not over-match an unrecognized issue code from irrelevant facts", () => {
+    const output = draftCivicReport({
+      issue_code: "safety_parking_illegal",
+      facts: {
+        what: "내용 확인 요청입니다."
+      }
+    });
+
+    assert.equal(output.result_type, "error");
+    assert.equal(output.draft, null);
+    assert.ok(output.errors.some((error) => error.code === "E_UNKNOWN_ISSUE_CODE"));
+  });
+
   it("masks PlayMCP-provided privacy details when resolving category hints", () => {
     const output = draftCivicReport({
       issue_code: "environment_sanitation",

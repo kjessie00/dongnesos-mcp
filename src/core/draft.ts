@@ -318,8 +318,9 @@ function resolveDraftTaxonomyItem(issueCode: string, input: DraftInput): Taxonom
   const text = normalizeText(
     [input.facts.what, input.facts.where_general, input.facts.impact, input.facts.photo_note, snapshotLabel(input)].filter(Boolean).join(" ")
   );
-  const candidates = taxonomyData.items
-    .filter((item) => hint === "unknown" || categoryMatches(item, hint))
+  const categoryCandidates = taxonomyData.items.filter((item) => categoryMatches(item, hint));
+  const candidatePool = hint === "unknown" || categoryCandidates.length === 0 ? taxonomyData.items : categoryCandidates;
+  const candidates = candidatePool
     .map((item) => {
       const score = item.keywords.reduce((sum, keyword) => {
         return text.includes(normalizeText(keyword)) ? sum + (keyword.length >= 4 ? 3 : 2) : sum;
