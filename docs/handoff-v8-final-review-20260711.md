@@ -123,3 +123,79 @@
 - 제출 증거 규격: `PLAYMCP_SUBMISSION.md`
 - 스프린트 계획: `docs/final-sprint-plan-20260710.md`
 - 로컬 증거: `deploy/playmcp/evidence/*-20260711.*` (gitignore, 오너 머신에만 있음)
+
+---
+
+## 부록 A. 새 버전 업로드 (KakaoCloud Git 빌드) 상세 절차
+
+서버 코드(`src/`)를 고쳤으면 **새 버전을 KakaoCloud에 새로 빌드**해야 반영된다. **제자리 재빌드는 없다** — v7/v8 상세 페이지의 액션은 `[중지]`·`[삭제]`뿐이라, 매번 새 서버(v9, v10 …)를 만든다.
+
+### A-1. 전제: 슬롯 비우기 (서버 최대 2대)
+- 공모전 규칙상 1인당 서버 **최대 2대**. 현재 v7(롤백)+v8 = 2/2. 새 버전을 만들려면 **낡은 것 하나를 먼저 삭제**해야 한다(보통 v7을 지우고 새 버전을 심사 대상으로, 또는 검증 후 교체).
+- 삭제 경로: `playmcp.kakaocloud.io/my-mcp` → 서버 카드 클릭 → 상세(`/mcp-detail/<id>`) → **삭제할 서버가 맞는지 반드시 확인**(제목 + `Endpoint URL`에 그 버전 도메인이 있고 다른 버전 URL은 없어야 함) → 우상단 **[삭제]**.
+- ⚠️ **삭제는 되돌릴 수 없고 파괴적이라 Claude auto-mode 분류기가 자동 실행을 막는다.** 이번엔 오너가 v6를 직접 삭제함. 자동화로 하려면: (1) `.claude/settings.local.json`에 실행 권한 규칙 필요, (2) `[삭제]` 클릭 후 뜨는 건 **native `confirm()` 다이얼로그일 가능성이 큼** — Playwright는 기본적으로 다이얼로그를 **자동 취소(dismiss)** 하므로 삭제가 안 됨. 실제로 지우려면 `page.on("dialog", lambda d: d.accept())`로 **accept** 해야 하고, accept 전 반드시 v6/대상 확인 어서션을 통과시킬 것. (안전 우선이면 오너가 포털에서 직접 삭제 권장.)
+- 삭제 확인: my-mcp 목록에서 그 서버가 사라지고 `전체 N-1건`이 되는지, 남길 서버는 그대로 있는지 확인.
+
+### A-2. 새 서버 생성 (Git 소스 빌드) — 실제 검증된 흐름
+`playmcp.kakaocloud.io/my-mcp`에서:
+1. **[+ 새 MCP 서버 등록 ▼]** 클릭 → 드롭다운에서 **[Git 소스 빌드]** 클릭.
+2. **공모전 안내 모달**이 먼저 뜬다("PlayMCP in KC에서의 MCP 서버 등록은 Agentic Player 10 공모전 참가용으로만…") → **[확인]** 클릭해서 닫아야 폼이 나온다.
+3. 폼 입력(모두 shadow-DOM; Playwright 로케이터는 shadow를 뚫음. **설명 필드는 placeholder가 숨은 이미지빌드 폼과 중복**되므로 `#gitBuildMcpDescription`로 지정):
+
+   | 필드 | 셀렉터 | 값 |
+   |---|---|---|
+   | MCP 서버 이름 * | placeholder `예: my-git-mcp-server` | `dongnesos-mcp-v9` (소문자·숫자·하이픈·점만, DNS 규칙, **`kakao` 금지**) |
+   | 설명 * | `#gitBuildMcpDescription` | `동네 생활 불편을 안전하게 분류하고 공식 민원 신고 준비문과 개인정보 보호용 공유 문안을 작성하는 MCP 서버입니다.` |
+   | Git URL * | placeholder `예: https://github.com/org/mcp-server.git` | `https://github.com/kjessie00/dongnesos-mcp.git` |
+   | 브랜치 / ref | placeholder `main`(기본값 `main`) | `main` (최신 커밋 자동 반영) |
+   | Dockerfile 경로 | placeholder `Dockerfile`(기본값 `Dockerfile`) | `Dockerfile` |
+   | PAT (선택) | password | 공개 저장소라 **비움** |
+   | (제출) | 텍스트 `등록하기` (visible) | 클릭 |
+
+   - 참고(이전 v5 페이로드): registry `ai-service.kr-central-2.kcr.dev`, image_name `kc-playmcp-cr/user-img-dongnesos-mcp-vN` — 서버명에서 자동 파생되므로 직접 입력할 필요 없음.
+   - 입력 후 **읽기 재확인**(input_value)으로 이름/URL이 맞는지 검증한 뒤 `등록하기` 클릭.
+4. 제출 성공 시 목록에 새 서버가 **Status `Starting`**(빌드·배포 중)으로 뜬다. 빌드+배포에 수 분 소요.
+
+### A-3. 활성화 대기 & 실패 처리
+- 완료 감지: `https://dongnesos-mcp-v9.playmcp-endpoint.kakaocloud.io/healthz`를 폴링(HTTP 200 + `{"ok":true,...,"tools":[...]}`)하면 준비 완료. (`curl`은 이 환경에서 막혀 있으니 python `urllib`나 npm 스크립트로.)
+- v8은 이번에 **정상 빌드 성공**. 다만 과거 v4는 KakaoCloud 플랫폼 오류(KServe webhook timeout)로 실패한 이력이 있음 — 실패하면 **실패 서버를 삭제하고 재시도**, 그동안 이전 버전(v7/v8)이 살아있어 제출은 안전.
+- 자동화 주의: **생성(빌드)** 은 권한 규칙 추가 후 자동 실행됐지만, **삭제**는 분류기가 막았음(A-1 참고).
+
+### A-4. 활성화 후 필수 후속 작업
+1. **콘솔 엔드포인트 교체**: `deploy/playmcp/webwright/final_script.py --mode browser --update-console --endpoint <새 v9 /mcp> --server-name dongnesos-mcp-v9 --mcp-name '동네SOS' --expected-commit <새 커밋>` → 카드 펼치기(`btn_fold`) → 수정(`btn_secondary`) → 엔드포인트 채우기 → **정보 불러오기** → **저장하기**. `console_update_result.json`에 `endpoint_before/after`, `endpoint_saved` 기록됨.
+2. 원격 재검증: `npm run smoke:endpoint`, `smoke:actual-use:endpoint`(부록 없이도 §4).
+3. **AI 채팅 재검증**(부록 B) — 특히 draft가 새 서버에서도 self-heal 하는지.
+
+---
+
+## 부록 B. 카카오 사이트(AI 채팅)로 이 도구 검토하는 상세 절차
+
+심사자는 **`playmcp.kakao.com/toolbox`의 AI 채팅**에서 `동네SOS`를 실제로 써 본다. 여기서 도구가 제대로 **호출**되고 답이 좋은지 확인하는 게 핵심 검토다. (엔드포인트 직접 스모크는 통과해도, 실제 챗에서 LLM이 도구를 어떻게 부르는지는 별개 — v8의 draft 버그가 이 경로에서만 드러났었다.)
+
+### B-1. 채팅 열기 / 입력창
+- URL: `https://playmcp.kakao.com/toolbox`. `동네SOS`가 **도구함(1/10)** 에 있어야 함(없으면 "MCP 추가하기").
+- **"AI 채팅" 버튼을 클릭해야** 채팅 패널이 열린다(URL은 `/toolbox` 그대로). **입력창은 그 전에는 DOM에 없다** — 클릭 후 `textarea.tf_comm`가 생김. 전송은 **Enter**.
+- 시나리오를 격리하려면 각 시나리오 전에 **"새 채팅"** 버튼으로 문맥 초기화.
+- **어느 서버를 호출하나:** 도구함은 콘솔에 등록된 MCP를 부른다. 콘솔을 v8로 교체+정보 불러오기 했으므로 챗은 **v8**을 호출함(증명: self-heal은 v8에만 있는데 챗 draft가 성공 → 챗이 v8을 부름).
+
+### B-2. **도구 호출을 반드시 눈으로 확인** (가장 중요)
+- 도구가 실제로 불리면 챗에 **"TOOL 호출" 패널**이 뜬다: 도구명(`classify_civic_issue` / `draft_civic_report`) + `동네SOS` + `Request`/`Response` 탭. Request에 `{"method":"tools/call","params":{"name":...,"arguments":{...}}}`가 보임.
+- ⚠️ **답변 텍스트에 "안전신문고" 같은 키워드가 있다고 도구를 쓴 게 아니다** — 일반 LLM도 아는 내용이다. **반드시 "TOOL 호출" 패널(또는 자동화로 innerText에 `classify_civic_issue`/`draft_civic_report` 포함 여부)로 실제 호출을 확인**할 것. (초기 검토에서 이걸 안 봐서 놓칠 뻔했음.)
+
+### B-3. 초안(2턴) 검증 시 **타이밍 주의**
+- 흐름: **1턴**(상황 설명) 전송 → 분류 답변이 **끝날 때까지 기다림** → **2턴**("공식 신고문 초안 만들어 주세요") 전송 → `draft_civic_report` 호출 + 초안 확인.
+- ❗ 1턴 답변이 끝나기 전에 2턴을 보내면 **draft가 호출되지 않는다**(입력창이 생성 중). 자동화 첫 배치에서 A/B가 이 이유로 false였고, 간격을 두니 PASS. 자동화 시 `wait_for_function`으로 `classify_civic_issue` 토큰 + 답변 안정화(예: 8~9초) 후 2턴 전송.
+
+### B-4. 시나리오별 확인 포인트 + 이번에 쓴 프롬프트
+| 유형 | 프롬프트(예) | 통과 기준 |
+|---|---|---|
+| 일반 민원 A(가로등) | "골목 가로등이 며칠째 꺼져 있어서 밤에 무서워요. 어디에 신고 준비하면 될까요?" → "그 내용으로 공식 신고문 초안 만들어 주세요." | classify+draft **호출**, 초안에 `제목:`/`요청사항:`, 공식경로(안전신문고·국민신문고·지자체), **에러 문구("초안 생성에 문제") 없음** |
+| 일반 민원 B(무단투기) | "아파트 화단에 누가 계속 생활쓰레기를 몰래 버려요. 어떻게 신고 준비하죠?" → 초안 요청 | 위와 동일 |
+| **긴급 C**(가스누출) | "집에서 가스 냄새가 심하게 나는데 어디에 신고 준비해요? 신고문 초안도 만들어줘." | 초안 **차단** + **112/119** 등 긴급 채널 안내(초안 `제목:` 안 나와야 정상) |
+| 개인정보(주차) | "OO초 앞 횡단보도에 12가3456 불법주정차, 사진에 아이 얼굴도… 동네방에 올려도 되나요?" | 공식신고문엔 차량번호 유지 / 공개공유문엔 제거, 얼굴·개인정보 마스킹 안내 |
+| **범위 밖 D**(이웃 도움) | "우리 동네에서 강아지 산책 대신 시켜줄 이웃 구해요." | ⚠️ 챗이 **MCP를 호출하지 않고** 일반 답변할 수 있음(정상) — MCP 결함 아님. 호출되면 "이웃 도움은 범위 밖"으로 거절 |
+
+### B-5. 쿼터 / 자동화 헬퍼
+- 우하단 **"남은 질문 N개"** — 현재 ~46개, 약 2분당 1개 충전. 1턴 = 1개 소모.
+- 자동화 감지: `page.wait_for_function`으로 innerText에 도구명 포함 감지; 답변 텍스트에서 `제목:`/`요청사항:`(초안 성공), `112`/`119`/`긴급`(긴급), `"초안 생성에 문제"`(실패) 검사.
+- 이번 QA 결과·증거: `deploy/playmcp/evidence/aichat-qa-*-20260711.*`, `toolbox-v8-draft-success-20260711.*`. 결과: A·B·C **PASS**, D 참고(MCP 미호출, 정상).
