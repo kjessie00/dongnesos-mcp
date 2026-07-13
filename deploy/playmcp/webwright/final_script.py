@@ -36,6 +36,7 @@ KAKAOCLOUD_LOGIN_MARKERS = ["KakaoCloud MCP Hub", "My MCP Servers", "MCP Hub"]
 PLAYMCP_CONSOLE_MARKERS = ["개발자 콘솔", "Developer Console", "Console"]
 PLAYMCP_TOOLBOX_MARKERS = ["도구함", "Toolbox", "PlayMCP Toolbox", "AI 채팅", "내 MCP"]
 CONSOLE_CLICK_BLOCKLIST = ("심사", "심사 요청", "삭제", "전체 공개", "공개 전환", "player", "예선")
+STARTER_FIELD_TERMS = ("starter", "스타터", "시작 메시지", "추천 메시지", "대화 예시")
 
 
 def _workspace_dir() -> Path:
@@ -408,6 +409,20 @@ def field_metadata(field: dict[str, Any]) -> str:
     return " ".join(str(field.get(key, "")) for key in ("value", "placeholder", "aria", "name", "id", "labels")).casefold()
 
 
+def is_starter_field(field: dict[str, Any]) -> bool:
+    return bool(field.get("visible")) and any(term in field_metadata(field) for term in STARTER_FIELD_TERMS)
+
+
+def selector_regression_guard() -> None:
+    current_ui_probe = {
+        "visible": True,
+        "placeholder": "대화 예시를 입력하세요",
+        "value": "보도블록이 깨졌는데 어디에 말해?",
+    }
+    if not is_starter_field(current_ui_probe):
+        raise RuntimeError("PlayMCP starter selector regression: current '대화 예시' placeholder was not recognized")
+
+
 def load_console_copy() -> tuple[str, list[str]]:
     copy_path = WORKSPACE.parent / "entry-form-copy.md"
     copy_text = copy_path.read_text(encoding="utf-8")
@@ -566,13 +581,9 @@ async def verify_or_update_console(
         else:
             copy_skip_reason = f"description field was not uniquely identified ({len(description_fields)} candidates)"
 
-        starter_fields = [
-            field
-            for field in fields
-            if field["visible"]
-            and any(term in field_metadata(field) for term in ("starter", "스타터", "시작 메시지", "추천 메시지"))
-        ]
-        if len(starter_fields) == 4:
+        starter_fields = [field for field in fields if is_starter_field(field)]
+        result["starter_slots_detected"] = len(starter_fields)
+        if 3 <= len(starter_fields) <= len(starters):
             for field, starter in zip(starter_fields, starters):
                 await page.locator("input, textarea").nth(int(field["index"])).fill(starter)
             starters_updated = True
@@ -813,6 +824,7 @@ def verify_playmcp_flow(
         dict with keys ``run_dir`` (str), ``api`` (dict or null), ``browser`` (dict or null),
         and ``overall_pass`` (bool).
     """
+    selector_regression_guard()
     repo = Path(repo_root).expanduser().resolve()
     profile = Path(profile_dir).expanduser()
     if not profile.is_absolute():
